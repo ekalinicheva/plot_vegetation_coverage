@@ -1,9 +1,6 @@
 import numpy as np
-import matplotlib.pyplot as plt
 from scipy.special import logsumexp
 from scipy.stats import gamma, norm
-
-
 
 def get_gamma_params(z_all):
 
@@ -114,10 +111,4 @@ def get_gamma_params(z_all):
 
     unsupervised_forecastsforecasts, unsupervised_posterior, unsupervised_loglikelihoods, data_g, data_v = run_em(z_all, params)
     print("total steps: ", len(unsupervised_loglikelihoods))
-    # plt.plot(unsupervised_loglikelihoods)
-    # plt.title("unsupervised log likelihoods")
-    # plt.savefig("unsupervised.png")
-    # plt.show()
-    # plt.close()
-
     return params

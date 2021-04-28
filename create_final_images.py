@@ -17,6 +17,8 @@ def visualize(image_soil, image_med_veg, cloud, prediction, pl_id, stats_path, a
         image_soil = image_soil[:,:,0]
         image_med_veg = image_med_veg[:, :, 0]
 
+
+    # We set figure size depending on the number of subplots
     if scores is None and image_high_veg is None:
         row, col = 2, 2
         fig = plt.figure(figsize=(20, 15))
@@ -24,7 +26,7 @@ def visualize(image_soil, image_med_veg, cloud, prediction, pl_id, stats_path, a
         row, col = 3, 2
         fig = plt.figure(figsize=(20, 25))
 
-
+    # Original point data
     ax1 = fig.add_subplot(row, col, 1, projection='3d')
     colors_ = cloud[3:6].numpy().transpose()
     ax1.scatter(cloud[0], cloud[1], cloud[2]*args.z_max, c=colors_, vmin=0, vmax=1, s=10, alpha=1)
@@ -33,17 +35,16 @@ def visualize(image_soil, image_med_veg, cloud, prediction, pl_id, stats_path, a
     ax1.set_xticklabels([])
     # colors = cloud[3:7].numpy().transpose()
     # ax1.scatter3D(cloud[0], cloud[1], cloud[2], c=cloud[[6, 3, 4]].numpy().transpose(), s=2, vmin=0, vmax=10)
-
     ax1.set_title(pl_id)
+
+
+    # LV stratum raster
     ax2 = fig.add_subplot(row, col, 2)
     color_grad = [(0.8, 0.4, 0.1), (0, 1, 0)]  # first color is brown, last is green
     cm = colors.LinearSegmentedColormap.from_list(
         "Custom", color_grad, N=100)
     ax2.imshow(image_soil, cmap=cm, vmin=0, vmax=1)
-
-
-    ax2.set_title('Soil coverage')
-
+    ax2.set_title('Ground coverage')
     ax2.tick_params(
         axis='both',  # changes apply to both axis
         which='both',  # both major and minor ticks are affected
@@ -56,7 +57,7 @@ def visualize(image_soil, image_med_veg, cloud, prediction, pl_id, stats_path, a
     ax2.set_xticklabels([])
 
 
-
+    # Pointwise prediction
     ax3 = fig.add_subplot(row, col, 3, projection='3d')
     ax3.auto_scale_xyz
     colors_pred = prediction.cpu().detach().numpy().transpose()
@@ -71,7 +72,7 @@ def visualize(image_soil, image_med_veg, cloud, prediction, pl_id, stats_path, a
     ax3.set_xticklabels([])
 
 
-
+    # MV stratum raster
     ax4 = fig.add_subplot(row, col, 4)
     color_grad = [(1, 1, 1), (0, 0, 1)]  # first color is white, last is blue
     cm = colors.LinearSegmentedColormap.from_list(
@@ -88,9 +89,6 @@ def visualize(image_soil, image_med_veg, cloud, prediction, pl_id, stats_path, a
         labelbottom=False)  # labels along the bottom edge are off
     ax4.set_yticklabels([])
     ax4.set_xticklabels([])
-
-
-
 
     # Plot stratum scores
     if scores is not None:
@@ -132,7 +130,7 @@ def visualize(image_soil, image_med_veg, cloud, prediction, pl_id, stats_path, a
 
 
 
-def create_final_images(pred_pl, gt, pred_pointwise_b, cloud, probas, plot_name, mean_dataset, stats_path, stats_file, args):
+def create_final_images(pred_pl, gt, pred_pointwise_b, cloud, probas, plot_name, mean_dataset, stats_path, stats_file, args, create_raster=True):
     '''
     We do final data reprojection to the 2D space (2 stratum - ground vegetation level and medium level, optionally high level) by associating the points to the pixels.
     Then we create the images with those stratum
@@ -168,26 +166,82 @@ def create_final_images(pred_pl, gt, pred_pointwise_b, cloud, probas, plot_name,
         image_soil = np.flip(image_soil, axis=0)  # we flip along y axis as the 1st raster row starts with 0
         image_med_veg = np.flip(image_med_veg, axis=0)
         # We normalize back x,y values to create a tiff file with 2 rasters
-        xy = xy * 10 + np.asarray(mean_dataset[plot_name]).reshape(-1, 1)
-        geo = [np.min(xy, axis=1)[0], (np.max(xy, axis=1)[0] - np.min(xy, axis=1)[0]) / args.diam_pix, 0,
-               np.max(xy, axis=1)[1], 0, (-np.max(xy, axis=1)[1] + np.min(xy, axis=1)[1]) / args.diam_pix]
-        create_tiff(nb_channels=2, new_tiff_name=stats_path + str(plot_name) + ".tif", width=args.diam_pix,
-                    height=args.diam_pix, datatype=gdal.GDT_Float32,
-                    data_array=np.concatenate(([image_soil[:, :, 0]], [image_med_veg[:, :, 0]]), 0), geotransformation=geo)
-    
+        if create_raster:
+            xy = xy * 10 + np.asarray(mean_dataset[plot_name]).reshape(-1, 1)
+            geo = [np.min(xy, axis=1)[0], (np.max(xy, axis=1)[0] - np.min(xy, axis=1)[0]) / args.diam_pix, 0,
+                   np.max(xy, axis=1)[1], 0, (-np.max(xy, axis=1)[1] + np.min(xy, axis=1)[1]) / args.diam_pix]
+            create_tiff(nb_channels=3, new_tiff_name=stats_path + plot_name + ".tif", width=args.diam_pix, height=args.diam_pix, datatype=gdal.GDT_Float32, data_array=np.concatenate(([image_ground], [image_med_veg], [image_high_veg]), 0), geotransformation=geo)
+
         # We create an image with 5 subplots:
         # 1. original point cloud, 2. LV image, 3. pointwise prediction point cloud, 4. MV image, 5.Stratum probabilities point cloud
         text = ' Pred ' + np.array2string(
             np.round(np.asarray(pred_pl[b].cpu().detach().numpy().reshape(-1)), 2)) + ' GT ' + np.array2string(
             gt.cpu().numpy()[0])  # prediction text
-        visualize(image_soil, image_med_veg, current_cloud, pred_cloud, plot_name, stats_path, args, text, 
+        visualize(image_soil, image_med_veg, current_cloud, pred_cloud, plot_name, stats_path, args, text,
                   scores=probas)
-        
-        
+
+
+def create_final_images_stratum3(pred_pl, gt, pred_pointwise_b, cloud, probas, plot_name, mean_dataset, stats_path, stats_file,
+                        args, create_raster=True):
+    '''
+    We do final data reprojection to the 2D space (2 stratum - ground vegetation level and medium level, optionally high level) by associating the points to the pixels.
+    Then we create the images with those stratum
+    '''
+    for b in range(len(pred_pointwise_b)):
+        # we get prediction stats string
+        pred_stats = plot_name + ' Pred ' + np.array2string(
+            np.round(np.asarray(pred_pl[b].cpu().detach().numpy().reshape(-1)), 2)) + ' GT ' + np.array2string(
+            gt.cpu().numpy()[0])
+        print_stats(stats_file, str(pred_stats), print_to_console=True)
+        pred_cloud = pred_pointwise_b[b]
+        current_cloud = cloud[b]
+        # we do raster reprojection, but we do not use torch scatter as we have to associate each value to a pixel
+        xy = current_cloud[:2]
+        xy = torch.floor((xy - torch.min(xy, dim=1).values.view(2, 1).expand_as(xy)) / (
+                torch.max(xy, dim=1).values - torch.min(xy, dim=1).values + 0.0001).view(2, 1).expand_as(
+            xy) * args.diam_pix).int()
+        xy = xy.cpu().numpy()
+        unique, index, inverse = np.unique(xy.T, axis=0, return_index=True, return_inverse=True)
+
+        # we get the values for each unique pixel and write them to rasters
+        image_ground = np.full((args.diam_pix, args.diam_pix), np.nan)
+        image_med_veg = np.full((args.diam_pix, args.diam_pix), np.nan)
+        image_high_veg = np.full((args.diam_pix, args.diam_pix), np.nan)
+        for i in np.unique(inverse):
+            where = np.where(inverse == i)[0]
+            k, m = xy.T[where][0]
+            maxpool = nn.MaxPool1d(len(where))
+            max_pool_val = maxpool(pred_cloud[:, where].unsqueeze(0)).cpu().detach().numpy().flatten()
+            proba_low_veg = max_pool_val[0]
+            proba_med_veg = max_pool_val[2]
+            proba_high_veg = max_pool_val[3]
+            image_ground[m, k] = proba_low_veg
+            image_med_veg[m, k] = proba_med_veg
+            image_high_veg[m, k] = proba_high_veg
+        image_ground = np.flip(image_ground, axis=0)    # we flip along y axis as the 1st raster row starts with 0
+        image_med_veg = np.flip(image_med_veg, axis=0)
+        image_high_veg = np.flip(image_high_veg, axis=0)
+
+        # We normalize back x,y values to create a tiff file with 2 rasters
+        if create_raster:
+            xy = xy * 10 + np.asarray(mean_dataset[plot_name]).reshape(-1, 1)
+            geo = [np.min(xy, axis=1)[0], (np.max(xy, axis=1)[0] - np.min(xy, axis=1)[0]) / args.diam_pix, 0,
+                   np.max(xy, axis=1)[1], 0, (-np.max(xy, axis=1)[1] + np.min(xy, axis=1)[1]) / args.diam_pix]
+            create_tiff(nb_channels=3, new_tiff_name=stats_path + plot_name + ".tif", width=args.diam_pix, height=args.diam_pix, datatype=gdal.GDT_Float32, data_array=np.concatenate(([image_ground], [image_med_veg], [image_high_veg]), 0), geotransformation=geo)
+
+        # We create an image with 6 subplots:
+        # 1. original point cloud, 2. LV image, 3. pointwise prediction point cloud, 4. MV image, 5.Stratum probabilities point cloud, 6. HV image
+        text = ' Pred ' + np.array2string(np.round(np.asarray(pred_pl[b].cpu().detach().numpy().reshape(-1)), 2)) + ' GT ' + np.array2string(gt.cpu().numpy()[0])   # prediction text
+        visualize(image_ground, image_med_veg, current_cloud, pred_cloud, plot_name, stats_path, args, txt=text, scores=probas, image_high_veg=image_high_veg)
+
+
+
+# We create a tiff file with 2 or 3 stratum
 def create_tiff(nb_channels, new_tiff_name, width, height, datatype, data_array, geotransformation):
     driver_tiff = gdal.GetDriverByName("GTiff")
+    # We set Lambert 93 projection
     srs = osr.SpatialReference()
-    srs.ImportFromEPSG(2154)  # Lambert 93
+    srs.ImportFromEPSG(2154)
     proj = srs.ExportToWkt()
     dst_ds = driver_tiff.Create(new_tiff_name, width, height, nb_channels, datatype)
     if nb_channels == 1:

@@ -13,8 +13,6 @@ def project_to_2d(pred_pointwise, cloud, pred_pointwise_b, PCC, args, params):
     scores_list - [BxNx2] same as scores, but separated by batch
     """
 
-
-
     fit_alpha_g, fit_loc_g, fit_beta_g = params["a_g"], params["loc_g"], params["scale_g"]
     fit_alpha_v, fit_loc_v, fit_beta_v = params["a_v"], params["loc_v"], params["scale_v"]
 
@@ -26,6 +24,7 @@ def project_to_2d(pred_pointwise, cloud, pred_pointwise_b, PCC, args, params):
     z_all = np.empty((0))
 
     # we project 3D points to 2D plane
+    # We use torch scatter to process
     for b in range(len(pred_pointwise_b)):
         current_cloud = cloud[b]
         xy = current_cloud[:2]

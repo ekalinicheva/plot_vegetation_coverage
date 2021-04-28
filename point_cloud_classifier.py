@@ -49,10 +49,10 @@ class PointCloudClassifier:
             n_points = cloud.shape[1]  # number of points in the considered cloud
             if n_points > self.subsample_size:
                 selected_points = np.random.choice(n_points, self.subsample_size,
-                                                   replace=False)  # TODO select self.subsample_size indices in [0, n_points-1] with np.random.choice
+                                                   replace=False)
             else:
                 selected_points = np.random.choice(n_points, self.subsample_size,
-                                                   replace=True)  # TODO select self.subsample_size indices in [0, n_points-1] with np.random.choice
+                                                   replace=True)
             cloud = cloud[:, selected_points]  # reduce the current cloud to the selected points
 
             sampled_clouds[i_batch, :, :] = cloud.clone()  # place current sampled cloud in sampled_clouds
@@ -67,7 +67,6 @@ class PointCloudClassifier:
             cloud = clouds[i_batch]
             # and the corresponding sampled batch (only xyz position)
             sampled_cloud = sampled_clouds[i_batch, :3, :]
-
             n_points = cloud.shape[1]
             knn = NearestNeighbors(1, algorithm='kd_tree').fit( \
                 sampled_cloud.cpu().permute(1, 0))
