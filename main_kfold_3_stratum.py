@@ -19,7 +19,7 @@ from loss_functions import loss_abs_gl_ml_hl, loss_loglikelihood
 # We import from other files
 from model import PointNet
 from point_cloud_classifier import PointCloudClassifier
-from utils import *
+from useful_functions import *
 from create_final_images import *
 from loader import *
 from reproject_to_2d_and_predict_plot_coverage import *
@@ -54,6 +54,7 @@ args.drop = 0.4                 # dropout layer probability
 args.soft = True                # Wheather we use sortmax layer of sigmoid
 args.m = 1                      # loss regularization
 args.z_max = 25                 # maximum z value for data normalization
+args.adm = True
 
 
 
@@ -94,9 +95,9 @@ def main():
 
     # #   Parameters of gamma distributions for two stratum
     # params = get_gamma_params(z_all)
-    params = {'phi': 0.47535938, 'a_g': 0.48213167, 'a_v': 1.46897231,
-              'loc_g': 0, 'loc_v': 0, 'scale_g': 0.1787963,
-              'scale_v': 3.5681678}
+    params = {'phi': 0.47535938, 'a_g': 0.1787963, 'a_v': 3.5681678,
+              'loc_g': 0, 'loc_v': 0, 'scale_g': 0.48213167,
+              'scale_v': 1.46897231}
 
     # [0.1787963 3.5681678]
     # [0.48213167 1.46897231]
