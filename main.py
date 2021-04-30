@@ -31,8 +31,8 @@ torch.cuda.empty_cache()
 
 parser = argparse.ArgumentParser(description='model')
 args = parser.parse_args()
-args.n_epoch = 1             # number of training epochs
-args.n_epoch_test = 1           # we evaluate every -th epoch
+args.n_epoch = 200             # number of training epochs
+args.n_epoch_test = 5           # we evaluate every -th epoch
 args.batch_size = 20
 args.n_class = 4                # size of the output vector
 args.input_feats = 'xyzrgbnir'  # point features that we keep. in this code, we keep them all. permuting those letters will break everything
@@ -260,7 +260,7 @@ def main():
 
         if args.nb_stratum == 2:
             mean_cross_fold_test = np.mean(loss_test_list), np.mean(loss_test_abs_list), np.mean(
-                loss_test_log_list), np.mean(loss_test_abs_gl_list), np.mean(loss_test_abs_ml_list), np.mean(loss_test_adm_list)
+                loss_test_log_list), np.mean(loss_test_abs_gl_list), np.mean(loss_test_adm_list)
 
             print_stats(stats_file,
                         "Mean Test Loss " + str(mean_cross_fold_test[0]) + " Loss abs " + str(
