@@ -15,15 +15,15 @@ from sklearn.model_selection import KFold
 
 
 # We import from other files
-from model import PointNet
-from point_cloud_classifier import PointCloudClassifier
-from utils import *
-from create_final_images import *
-from loader import *
-from reproject_to_2d_and_predict_plot_coverage import *
-from get_gamma_params import *
-from open_las import open_las
-from loss_functions import loss_abs_gl_ml, loss_loglikelihood
+from model.model import PointNet
+from utils.point_cloud_classifier import PointCloudClassifier
+from utils.useful_functions import *
+from utils.create_final_images import *
+from data_loader.loader import *
+from utils.reproject_to_2d_and_predict_plot_coverage import *
+from em_gamma.get_gamma_params import *
+from utils.open_las import open_las
+from model.loss_functions import loss_abs_gl_ml, loss_loglikelihood, loss_abs_adm
 
 
 
@@ -35,7 +35,7 @@ torch.cuda.empty_cache()
 
 parser = argparse.ArgumentParser(description='model')
 args = parser.parse_args()
-args.n_epoch = 200             # number of training epochs
+args.n_epoch = 150             # number of training epochs
 args.n_epoch_test = 5           # we evaluate every -th epoch
 args.batch_size = 20
 args.n_class = 4                # size of the output vector
@@ -53,6 +53,8 @@ args.drop = 0.4                 # dropout layer probability
 args.soft = True                # Wheather we use sortmax layer of sigmoid
 args.m = 1                      # loss regularization
 args.z_max = 24                 # maximum z value for data normalization
+args.adm = True                 # wheather we compute admissibility or not
+args.nb_stratum = 2
 
 
 
@@ -94,9 +96,10 @@ def main():
 
     # #   Parameters of gamma distributions for two stratum
     # params = get_gamma_params(z_all)
-    params = {'phi': 0.47535938, 'a_g': 0.48213167, 'a_v': 1.46897231,
-              'loc_g': 0, 'loc_v': 0, 'scale_g': 0.1787963,
-              'scale_v': 3.5681678}
+
+    params = {'phi': 0.47535938, 'a_g': 0.1787963, 'a_v': 3.5681678,
+              'loc_g': 0, 'loc_v': 0, 'scale_g': 0.48213167,
+              'scale_v': 1.46897231}
 
     # phi_g = 1 - params["phi"]
     # phi_v = params["phi"]
@@ -112,10 +115,11 @@ def main():
                                              batch_size=args.batch_size, shuffle=True, drop_last=True)
 
         # will keep track of the loss
+        loss_meter = tnt.meter.AverageValueMeter()
         loss_meter_abs = tnt.meter.AverageValueMeter()
         loss_meter_log = tnt.meter.AverageValueMeter()
-        loss_meter = tnt.meter.AverageValueMeter()
-        
+        loss_meter_abs_adm = tnt.meter.AverageValueMeter()
+
         for index_batch, (cloud, gt) in enumerate(loader):
 
             if PCC.is_cuda:
@@ -123,12 +127,20 @@ def main():
 
             optimizer.zero_grad()  # put gradient to zero
             pred_pointwise, pred_pointwise_b = PCC.run(model, cloud)  # compute the pointwise prediction
-            pred_pl = project_to_2d(pred_pointwise, cloud, pred_pointwise_b, PCC, args, nb_stratum=2) # compute plot prediction
+            pred_pl, pred_adm = project_to_2d(pred_pointwise, cloud, pred_pointwise_b, PCC, args) # compute plot prediction
 
             # we compute two losses (negative loglikelihood and the absolute error loss for 2 stratum)
             loss_abs = loss_abs_gl_ml(pred_pl, gt)  # absolut loss
-            loss_log, likelihood = loss_loglikelihood(pred_pointwise, cloud, params, PCC, args)   # negative loglikelihood loss
-            loss = loss_abs + args.m * loss_log
+            loss_log, likelihood = loss_loglikelihood(pred_pointwise, cloud, params, PCC,
+                                                      args)  # negative loglikelihood loss
+            if args.adm:
+                # we compute admissibility loss
+                loss_adm = loss_abs_adm(pred_adm, gt)
+                loss = loss_abs + args.m * loss_log + 0.5 * loss_adm
+                loss_meter_abs_adm.add(loss_adm.item())
+            else:
+                loss = loss_abs + args.m * loss_log
+
             loss.backward()
             optimizer.step()
 
@@ -137,7 +149,7 @@ def main():
             loss_meter.add(loss.item())
             gc.collect()
 
-        return loss_meter.value()[0], loss_meter_abs.value()[0], loss_meter_log.value()[0]
+        return loss_meter.value()[0], loss_meter_abs.value()[0], loss_meter_log.value()[0], loss_meter_abs_adm.value()[0]
 
 
     def eval(model, PCC, args, last_epoch=False):
@@ -151,6 +163,7 @@ def main():
         loss_meter = tnt.meter.AverageValueMeter()
         loss_meter_abs_gl = tnt.meter.AverageValueMeter()
         loss_meter_abs_ml = tnt.meter.AverageValueMeter()
+        loss_meter_abs_adm = tnt.meter.AverageValueMeter()
 
 
         for index_batch, (cloud, gt) in enumerate(loader):
@@ -159,39 +172,40 @@ def main():
                 gt = gt.cuda()
 
 
-            # if it is the last epoch, we get time stats info
-            if last_epoch:
-                start_encoding_time = time.time()
-                pred_pointwise, pred_pointwise_b = PCC.run(model, cloud)  # compute the prediction
-                pred_pl = project_to_2d(pred_pointwise, cloud, pred_pointwise_b, PCC, args,
-                                        nb_stratum=2)  # compute plot predictions
-                end_encoding_time = time.time()
+            start_encoding_time = time.time()
+            pred_pointwise, pred_pointwise_b = PCC.run(model, cloud)  # compute the prediction
+            end_encoding_time = time.time()
+            if last_epoch:            # if it is the last epoch, we get time stats info
                 print(end_encoding_time - start_encoding_time)
 
-            else:
-                pred_pointwise, pred_pointwise_b = PCC.run(model, cloud)  # compute the pointwise prediction
-                pred_pl = project_to_2d(pred_pointwise, cloud, pred_pointwise_b, PCC, args,
-                                        nb_stratum=2)  # compute plot predictions
+
+            pred_pl, pred_adm = project_to_2d(pred_pointwise, cloud, pred_pointwise_b, PCC, args) # compute plot prediction
 
             # we compute two losses (negative loglikelihood and the absolute error loss for 2 stratum)
             loss_abs = loss_abs_gl_ml(pred_pl, gt)  # absolut loss
-            loss_log, likelihood = loss_loglikelihood(pred_pointwise, cloud, params, PCC, args)  # negative loglikelihood loss
-            loss = loss_abs + args.m * loss_log
+            loss_log, likelihood = loss_loglikelihood(pred_pointwise, cloud, params, PCC,
+                                                      args)  # negative loglikelihood loss
+            if args.adm:
+                # we compute admissibility loss
+                loss_adm = loss_abs_adm(pred_adm, gt)
+                loss = loss_abs + args.m * loss_log + 0.5 * loss_adm
+                loss_meter_abs_adm.add(loss_adm.item())
+            else:
+                loss = loss_abs + args.m * loss_log
 
-
+            loss_meter.add(loss.item())
             loss_meter_abs.add(loss_abs.item())
             loss_meter_log.add(loss_log.item())
-            loss_meter.add(loss.item())
 
 
             if last_epoch:
                 create_final_images(pred_pl, gt, pred_pointwise_b, cloud, likelihood, test_list[index_batch], mean_dataset, stats_path, stats_file,
-                                    args)   #create final images with stratum values
+                                    args, adm=pred_adm)   #create final images with stratum values
                 loss_abs_gl, loss_abs_ml = loss_abs_gl_ml(pred_pl, gt, gl_mv_loss=True) # gl_mv_loss gives separated losses for each stratum
                 loss_meter_abs_gl.add(loss_abs_gl.item())
                 loss_meter_abs_ml.add(loss_abs_ml.item())
 
-        return loss_meter.value()[0], loss_meter_abs.value()[0], loss_meter_log.value()[0], loss_meter_abs_gl.value()[0], loss_meter_abs_ml.value()[0]
+        return loss_meter.value()[0], loss_meter_abs.value()[0], loss_meter_log.value()[0], loss_meter_abs_gl.value()[0], loss_meter_abs_ml.value()[0], loss_meter_abs_adm.value()[0]
 
 
     def train_full(args):
@@ -216,27 +230,38 @@ def main():
         NORMALCOLOR = '\033[0m'
 
         for i_epoch in range(args.n_epoch):
-
-            # train one epoch
-            loss_train, loss_train_abs, loss_train_log = train(model, PCC, optimizer, args)
-            print(TRAINCOLOR + 'Epoch %3d -> Train Loss: %1.4f Train Loss Abs: %1.4f Train Loss Log: %1.4f' % (i_epoch, loss_train, loss_train_abs, loss_train_log) + NORMALCOLOR)
             scheduler.step()
 
-            if (i_epoch + 1) % args.n_epoch_test == 0:
-                if (i_epoch + 1) == args.n_epoch:   # if last epoch, we creare 2D images with points projections
-                    loss_test, loss_test_abs, loss_test_log, loss_test_abs_gl, loss_test_abs_ml = eval(model, PCC, args, last_epoch=True)
-                else:
-                    loss_test, loss_test_abs, loss_test_log, _, _ = eval(model, PCC, args)
-                gc.collect()
-                print(TESTCOLOR + 'Test Loss: %1.4f Test Loss Abs: %1.4f Test Loss Log: %1.4f' % (loss_test, loss_test_abs, loss_test_log) + NORMALCOLOR)
-                writer.add_scalar('Loss/test', loss_test, i_epoch + 1)
-                writer.add_scalar('Loss/test_abs', loss_test_abs, i_epoch + 1)
-                writer.add_scalar('Loss/test_log', loss_test_log, i_epoch + 1)
+            # train one epoch
+            loss_train, loss_train_abs, loss_train_log, loss_train_adm = train(model, PCC, optimizer, args)
+            if args.adm:
+                print(TRAINCOLOR + 'Epoch %3d -> Train Loss: %1.4f Train Loss Abs: %1.4f Train Loss Log: %1.4f Train Loss Adm: %1.4f' % (i_epoch, loss_train, loss_train_abs, loss_train_log, loss_train_adm) + NORMALCOLOR)
+                writer.add_scalar('Loss/train_abs_adm', loss_train_adm, i_epoch + 1)
+            else:
+                print(TRAINCOLOR + 'Epoch %3d -> Train Loss: %1.4f Train Loss Abs: %1.4f Train Loss Log: %1.4f' % (i_epoch, loss_train, loss_train_abs, loss_train_log) + NORMALCOLOR)
             writer.add_scalar('Loss/train', loss_train, i_epoch + 1)
             writer.add_scalar('Loss/train_abs', loss_train_abs, i_epoch + 1)
             writer.add_scalar('Loss/train_log', loss_train_log, i_epoch + 1)
+
+
+
+            if (i_epoch + 1) % args.n_epoch_test == 0:
+                if (i_epoch + 1) == args.n_epoch:   # if last epoch, we creare 2D images with points projections
+                    loss_test, loss_test_abs, loss_test_log, loss_test_abs_gl, loss_test_abs_ml, loss_test_adm = eval(model, PCC, args, last_epoch=True)
+                else:
+                    loss_test, loss_test_abs, loss_test_log, _, _, loss_test_adm = eval(model, PCC, args)
+                gc.collect()
+                if args.adm:
+                    print(TESTCOLOR + 'Test Loss: %1.4f Test Loss Abs: %1.4f Test Loss Log: %1.4f Test Loss Adm: %1.4f' % (loss_test, loss_test_abs, loss_test_log, loss_test_adm) + NORMALCOLOR)
+                    writer.add_scalar('Loss/test_abs_adm', loss_test_adm, i_epoch + 1)
+                else:
+                    print(TESTCOLOR + 'Test Loss: %1.4f Test Loss Abs: %1.4f Test Loss Log: %1.4f' % (
+                    loss_test, loss_test_abs, loss_test_log) + NORMALCOLOR)
+                writer.add_scalar('Loss/test', loss_test, i_epoch + 1)
+                writer.add_scalar('Loss/test_abs', loss_test_abs, i_epoch + 1)
+                writer.add_scalar('Loss/test_log', loss_test_log, i_epoch + 1)
         writer.flush()
-        return model, loss_train, loss_train_abs, loss_train_log, loss_test, loss_test_abs, loss_test_log, loss_test_abs_gl, loss_test_abs_ml
+        return model, loss_train, loss_train_abs, loss_train_log, loss_train_adm, loss_test, loss_test_abs, loss_test_log, loss_test_abs_gl, loss_test_abs_ml, loss_test_adm
 
 
 
@@ -252,12 +277,14 @@ def main():
     loss_train_list = []
     loss_train_abs_list = []
     loss_train_log_list = []
+    loss_train_adm_list = []
 
     loss_test_list = []
     loss_test_abs_list = []
     loss_test_log_list = []
     loss_test_abs_gl_list = []
     loss_test_abs_ml_list = []
+    loss_test_adm_list = []
 
 
 
@@ -272,7 +299,7 @@ def main():
         train_set = tnt.dataset.ListDataset(train_list,
                                             functools.partial(cloud_loader, dataset=dataset, df_gt=df_gt, train=True, args=args))
 
-        trained_model, loss_train, loss_train_abs, loss_train_log, loss_test, loss_test_abs, loss_test_log, loss_test_abs_gl, loss_test_abs_ml = train_full(args)
+        trained_model, loss_train, loss_train_abs, loss_train_log, loss_train_adm, loss_test, loss_test_abs, loss_test_log, loss_test_abs_gl, loss_test_abs_ml, loss_test_abs_adm = train_full(args)
 
         # save the trained model
         PATH = stats_path + "model_ss_" + str(args.subsample_size) + "_dp_" + str(args.diam_pix) + "_fold_" + str(fold_id) + ".pt"
@@ -282,21 +309,29 @@ def main():
         print_stats(stats_file,
                     "Fold_" + str(fold_id) + " Train Loss " + str(loss_train) + " Loss abs " + str(loss_train_abs) + " Loss log " + str(loss_train_log),
                     print_to_console=True)
-        print_stats(stats_file,
-                    "Fold_" + str(fold_id) + " Test Loss " + str(loss_test) + " Loss abs " + str(loss_test_abs) + " Loss log " + str(loss_test_log),
-                    print_to_console=True)
+        if args.adm:
+            print_stats(stats_file,
+                        "Fold_" + str(fold_id) + " Test Loss " + str(loss_test) + " Loss abs " + str(
+                            loss_test_abs) + " Loss log " + str(loss_test_log) + " Loss abs adm " + str(loss_test_abs_adm),
+                        print_to_console=True)
+        else:
+            print_stats(stats_file,
+                        "Fold_" + str(fold_id) + " Test Loss " + str(loss_test) + " Loss abs " + str(loss_test_abs) + " Loss log " + str(loss_test_log),
+                        print_to_console=True)
         print_stats(stats_file, "Fold_" + str(fold_id) + " Test Loss abs GL " + str(loss_test_abs_gl) + " Test Loss abs ML " + str(
             loss_test_abs_ml), print_to_console=True)
 
         loss_train_list.append(loss_train)
         loss_train_abs_list.append(loss_train_abs)
         loss_train_log_list.append(loss_train_log)
+        loss_train_adm_list.append(loss_train_adm)
         
         loss_test_list.append(loss_test)
         loss_test_abs_list.append(loss_test_abs)
         loss_test_log_list.append(loss_test_log)
         loss_test_abs_gl_list.append(loss_test_abs_gl)
         loss_test_abs_ml_list.append(loss_test_abs_ml)
+        loss_test_adm_list.append(loss_test_abs_adm)
 
 
         print_stats(stats_file,
@@ -305,20 +340,41 @@ def main():
         fold_id += 1
 
     #compute mean stats for 5 folds
-    mean_cross_fold_train = np.mean(loss_train_list), np.mean(loss_train_abs_list), np.mean(loss_train_log_list)
-    mean_cross_fold_test = np.mean(loss_test_list), np.mean(loss_test_abs_list), np.mean(loss_test_log_list), np.mean(loss_test_abs_gl_list), np.mean(loss_test_abs_ml_list)
+
+    if args.adm:
+        mean_cross_fold_train = np.mean(loss_train_list), np.mean(loss_train_abs_list), np.mean(loss_train_log_list), np.mean(loss_train_adm_list)
+        mean_cross_fold_test = np.mean(loss_test_list), np.mean(loss_test_abs_list), np.mean(
+            loss_test_log_list), np.mean(loss_test_abs_gl_list), np.mean(loss_test_abs_ml_list), np.mean(loss_test_adm_list)
+        print_stats(stats_file,
+                    "Mean Train Loss " + str(mean_cross_fold_train[0]) + " Loss abs " + str(
+                        mean_cross_fold_train[1]) + " Loss log " + str(mean_cross_fold_train[2])+ " Loss ADM " + str(mean_cross_fold_train[3]),
+                    print_to_console=True)
+
+        print_stats(stats_file,
+                    "Mean Test Loss " + str(mean_cross_fold_test[0]) + " Loss abs " + str(
+                        mean_cross_fold_test[1]) + " Loss log " + str(mean_cross_fold_test[2]) + " Loss abs GL " + str(
+                        mean_cross_fold_test[3]) + " Loss abs ML " + str(mean_cross_fold_test[4]) + " Loss ADM " + str(mean_cross_fold_test[5]),
+                    print_to_console=True)
+
+
+    else:
+        mean_cross_fold_train = np.mean(loss_train_list), np.mean(loss_train_abs_list), np.mean(loss_train_log_list)
+        mean_cross_fold_test = np.mean(loss_test_list), np.mean(loss_test_abs_list), np.mean(
+            loss_test_log_list), np.mean(loss_test_abs_gl_list), np.mean(loss_test_abs_ml_list)
+        print_stats(stats_file,
+                    "Mean Train Loss " + str(mean_cross_fold_train[0]) + " Loss abs " + str(
+                        mean_cross_fold_train[1]) + " Loss log " + str(mean_cross_fold_train[2]),
+                    print_to_console=True)
+
+        print_stats(stats_file,
+                    "Mean Test Loss " + str(mean_cross_fold_test[0]) + " Loss abs " + str(
+                        mean_cross_fold_test[1]) + " Loss log " + str(mean_cross_fold_test[2]) + " Loss abs GL " + str(
+                        mean_cross_fold_test[3]) + " Loss abs ML " + str(mean_cross_fold_test[4]),
+                    print_to_console=True)
 
     print(mean_cross_fold_train)
     print(mean_cross_fold_test)
 
-
-    print_stats(stats_file,
-                "Mean Train Loss " + str(mean_cross_fold_train[0]) + " Loss abs " + str(mean_cross_fold_train[1]) + " Loss log "  + str(mean_cross_fold_train[2]),
-                print_to_console=True)
-
-    print_stats(stats_file,
-                "Mean Test Loss " + str(mean_cross_fold_test[0]) + " Loss abs " + str(mean_cross_fold_test[1]) + " Loss log " + str(mean_cross_fold_test[2]) + " Loss abs GL " + str(mean_cross_fold_test[3])  + " Loss abs ML " + str(mean_cross_fold_test[4]),
-                print_to_console=True)
 
 
 

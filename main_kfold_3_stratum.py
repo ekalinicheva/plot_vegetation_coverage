@@ -13,18 +13,18 @@ import time
 import gc
 from torch.utils.tensorboard import SummaryWriter
 from sklearn.model_selection import KFold
-from loss_functions import loss_abs_gl_ml_hl, loss_loglikelihood
+from model.loss_functions import loss_abs_gl_ml_hl, loss_loglikelihood
 
 
 # We import from other files
-from model import PointNet
-from point_cloud_classifier import PointCloudClassifier
-from utils import *
-from create_final_images import *
-from loader import *
-from reproject_to_2d_and_predict_plot_coverage import *
-from get_gamma_params import *
-from open_las import *
+from model.model import PointNet
+from utils.point_cloud_classifier import PointCloudClassifier
+from utils.useful_functions import *
+from utils.create_final_images import *
+from data_loader.loader import *
+from utils.reproject_to_2d_and_predict_plot_coverage import *
+from em_gamma.get_gamma_params import *
+from utils.open_las import *
 
 
 
@@ -54,6 +54,8 @@ args.drop = 0.4                 # dropout layer probability
 args.soft = True                # Wheather we use sortmax layer of sigmoid
 args.m = 1                      # loss regularization
 args.z_max = 25                 # maximum z value for data normalization
+args.adm = True
+args.nb_stratum = 3
 
 
 
@@ -94,9 +96,9 @@ def main():
 
     # #   Parameters of gamma distributions for two stratum
     # params = get_gamma_params(z_all)
-    params = {'phi': 0.47535938, 'a_g': 0.48213167, 'a_v': 1.46897231,
-              'loc_g': 0, 'loc_v': 0, 'scale_g': 0.1787963,
-              'scale_v': 3.5681678}
+    params = {'phi': 0.47535938, 'a_g': 0.1787963, 'a_v': 3.5681678,
+              'loc_g': 0, 'loc_v': 0, 'scale_g': 0.48213167,
+              'scale_v': 1.46897231}
 
     # [0.1787963 3.5681678]
     # [0.48213167 1.46897231]
@@ -122,7 +124,7 @@ def main():
                 gt = gt.cuda()
             optimizer.zero_grad()  # put gradient to zero
             pred_pointwise, pred_pointwise_b = PCC.run(model, cloud)  # compute the prediction
-            pred_pl = project_to_2d(pred_pointwise, cloud, pred_pointwise_b, PCC, args, nb_stratum=3)
+            pred_pl = project_to_2d(pred_pointwise, cloud, pred_pointwise_b, PCC, args)
 
             # we compute two losses (negative loglikelihood and the absolute error loss for 3 stratum)
 
@@ -160,12 +162,12 @@ def main():
             if last_epoch:
                 start_encoding_time = time.time()
                 pred_pointwise, pred_pointwise_b = PCC.run(model, cloud)  # compute the prediction
-                pred_pl = project_to_2d(pred_pointwise, cloud, pred_pointwise_b, PCC, args, nb_stratum=3)
+                pred_pl = project_to_2d(pred_pointwise, cloud, pred_pointwise_b, PCC, args)
                 end_encoding_time = time.time()
                 print(end_encoding_time - start_encoding_time)
             else:
                 pred_pointwise, pred_pointwise_b = PCC.run(model, cloud)  # compute the prediction
-                pred_pl = project_to_2d(pred_pointwise, cloud, pred_pointwise_b, PCC, args, nb_stratum=3)
+                pred_pl = project_to_2d(pred_pointwise, cloud, pred_pointwise_b, PCC, args)
 
             # we compute two losses (negative loglikelihood and the absolute error loss for 3 stratum)
             loss_abs = loss_abs_gl_ml_hl(pred_pl, gt)
