@@ -5,23 +5,19 @@ import functools
 import argparse
 import pandas as pd
 import torch.optim as optim
-import torchnet as tnt
 from torch.optim.lr_scheduler import StepLR
-import time
-import gc
-from torch.utils.tensorboard import SummaryWriter
 from sklearn.model_selection import KFold
 
 
 
 # We import from other files
+from train import *
+from test import *
 from model.model import PointNet
 from utils.point_cloud_classifier import PointCloudClassifier
 from utils.useful_functions import *
 from utils.create_final_images import *
 from data_loader.loader import *
-from utils.reproject_to_2d_and_predict_plot_coverage import *
-from em_gamma.get_gamma_params import *
 from utils.open_las import open_las
 from model.loss_functions import *
 
@@ -35,7 +31,7 @@ torch.cuda.empty_cache()
 
 parser = argparse.ArgumentParser(description='model')
 args = parser.parse_args()
-args.n_epoch = 150             # number of training epochs
+args.n_epoch = 200             # number of training epochs
 args.n_epoch_test = 5           # we evaluate every -th epoch
 args.batch_size = 20
 args.n_class = 4                # size of the output vector
@@ -53,8 +49,8 @@ args.drop = 0.4                 # dropout layer probability
 args.soft = True                # Wheather we use sortmax layer of sigmoid
 args.m = 1                      # loss regularization
 args.z_max = 24                 # maximum z value for data normalization
-args.adm = True                 # wheather we compute admissibility or not
-args.nb_stratum = 3            # [2, 3] Number of vegetation stratum that we compute 2 - ground level + medium level; 3 - ground level + medium level + high level
+args.adm = False                # wheather we compute admissibility or not
+args.nb_stratum = 3             # [2, 3] Number of vegetation stratum that we compute 2 - ground level + medium level; 3 - ground level + medium level + high level
 
 
 
@@ -74,7 +70,17 @@ start_time = time.time()
 print(time.strftime("%H:%M:%S", time.gmtime(start_time)))
 
 run_name = str(time.strftime("%Y-%m-%d_%H%M%S"))
-results_path = stats_path = path + "RESULTS/"
+if args.nb_stratum == 2:
+    results_path = stats_path = path + "RESULTS/"
+else:
+    results_path = stats_path = path + "RESULTS_3_stratum/"
+
+if args.adm:
+    results_path = results_path + "admissibility/"
+else:
+    results_path = results_path + "only_stratum/"
+
+
 stats_path = results_path + run_name + "/"
 print(stats_path)
 
@@ -91,7 +97,7 @@ print_stats(stats_file, str(args), print_to_console=True) # save all the args pa
 
 
 def main():
-    # # We open las files and create a training dataset
+    # We open las files and create a dataset
     all_points, dataset, mean_dataset = open_las(las_folder)
 
     # #   Parameters of gamma distributions for two stratum
@@ -102,114 +108,6 @@ def main():
               'scale_v': 1.46897231}
 
 
-    def train(model, PCC, optimizer, args):
-        """train for one epoch"""
-        model.train()
-
-        # the loader function will take care of the batching
-        loader = torch.utils.data.DataLoader(train_set, collate_fn=cloud_collate, \
-                                             batch_size=args.batch_size, shuffle=True, drop_last=True)
-
-        # will keep track of the loss
-        loss_meter = tnt.meter.AverageValueMeter()
-        loss_meter_abs = tnt.meter.AverageValueMeter()
-        loss_meter_log = tnt.meter.AverageValueMeter()
-        loss_meter_abs_adm = tnt.meter.AverageValueMeter()
-
-        for index_batch, (cloud, gt) in enumerate(loader):
-
-            if PCC.is_cuda:
-                gt = gt.cuda()
-
-            optimizer.zero_grad()  # put gradient to zero
-            pred_pointwise, pred_pointwise_b = PCC.run(model, cloud)  # compute the pointwise prediction
-            pred_pl, pred_adm = project_to_2d(pred_pointwise, cloud, pred_pointwise_b, PCC, args) # compute plot prediction
-
-            # we compute two losses (negative loglikelihood and the absolute error loss for 2 or 3 stratum)
-            loss_abs = loss_absolute(pred_pl, gt, args)
-            loss_log, likelihood = loss_loglikelihood(pred_pointwise, cloud, params, PCC,
-                                                      args)  # negative loglikelihood loss
-            if args.adm:
-                # we compute admissibility loss
-                loss_adm = loss_abs_adm(pred_adm, gt)
-                loss = loss_abs + args.m * loss_log + 0.5 * loss_adm
-                loss_meter_abs_adm.add(loss_adm.item())
-            else:
-                loss = loss_abs + args.m * loss_log
-
-            loss.backward()
-            optimizer.step()
-
-            loss_meter_abs.add(loss_abs.item())
-            loss_meter_log.add(loss_log.item())
-            loss_meter.add(loss.item())
-            gc.collect()
-
-        return loss_meter.value()[0], loss_meter_abs.value()[0], loss_meter_log.value()[0], loss_meter_abs_adm.value()[0]
-
-
-    def eval(model, PCC, args, last_epoch=False):
-        """eval on test set"""
-
-        model.eval()
-
-        loader = torch.utils.data.DataLoader(test_set, collate_fn=cloud_collate, batch_size=1, shuffle=False)
-        loss_meter_abs = tnt.meter.AverageValueMeter()
-        loss_meter_log = tnt.meter.AverageValueMeter()
-        loss_meter = tnt.meter.AverageValueMeter()
-        loss_meter_abs_gl = tnt.meter.AverageValueMeter()
-        loss_meter_abs_ml = tnt.meter.AverageValueMeter()
-        loss_meter_abs_hl = tnt.meter.AverageValueMeter()
-        loss_meter_abs_adm = tnt.meter.AverageValueMeter()
-
-
-        for index_batch, (cloud, gt) in enumerate(loader):
-
-            if PCC.is_cuda:
-                gt = gt.cuda()
-
-
-            start_encoding_time = time.time()
-            pred_pointwise, pred_pointwise_b = PCC.run(model, cloud)  # compute the prediction
-            end_encoding_time = time.time()
-            if last_epoch:            # if it is the last epoch, we get time stats info
-                print(end_encoding_time - start_encoding_time)
-
-
-            pred_pl, pred_adm = project_to_2d(pred_pointwise, cloud, pred_pointwise_b, PCC, args) # compute plot prediction
-
-            # we compute two losses (negative loglikelihood and the absolute error loss for 2 stratum)
-            loss_abs = loss_absolute(pred_pl, gt, args)  # absolut loss
-            loss_log, likelihood = loss_loglikelihood(pred_pointwise, cloud, params, PCC,
-                                                      args)  # negative loglikelihood loss
-            if args.adm:
-                # we compute admissibility loss
-                loss_adm = loss_abs_adm(pred_adm, gt)
-                loss = loss_abs + args.m * loss_log + 0.5 * loss_adm
-                loss_meter_abs_adm.add(loss_adm.item())
-            else:
-                loss = loss_abs + args.m * loss_log
-
-            loss_meter.add(loss.item())
-            loss_meter_abs.add(loss_abs.item())
-            loss_meter_log.add(loss_log.item())
-
-
-            if last_epoch:
-                create_final_images(pred_pl, gt, pred_pointwise_b, cloud, likelihood, test_list[index_batch], mean_dataset, stats_path, stats_file,
-                                    args, adm=pred_adm)   #create final images with stratum values
-                component_losses = loss_absolute(pred_pl, gt, args, level_loss=True) # gl_mv_loss gives separated losses for each stratum
-
-
-                if args.nb_stratum == 2:
-                    loss_abs_gl, loss_abs_ml = component_losses
-                else:
-                    loss_abs_gl, loss_abs_ml, loss_abs_hl = component_losses
-                    loss_meter_abs_hl.add(loss_abs_hl.item())
-                loss_meter_abs_gl.add(loss_abs_gl.item())
-                loss_meter_abs_ml.add(loss_abs_ml.item())
-
-        return loss_meter.value()[0], loss_meter_abs.value()[0], loss_meter_log.value()[0], loss_meter_abs_gl.value()[0], loss_meter_abs_ml.value()[0], loss_meter_abs_hl.value()[0], loss_meter_abs_adm.value()[0]
 
 
     def train_full(args):
@@ -237,7 +135,7 @@ def main():
             scheduler.step()
 
             # train one epoch
-            loss_train, loss_train_abs, loss_train_log, loss_train_adm = train(model, PCC, optimizer, args)
+            loss_train, loss_train_abs, loss_train_log, loss_train_adm = train(model, PCC, train_set, params, optimizer, args)
             if args.adm:
                 print(TRAINCOLOR + 'Epoch %3d -> Train Loss: %1.4f Train Loss Abs: %1.4f Train Loss Log: %1.4f Train Loss Adm: %1.4f' % (i_epoch, loss_train, loss_train_abs, loss_train_log, loss_train_adm) + NORMALCOLOR)
                 writer.add_scalar('Loss/train_abs_adm', loss_train_adm, i_epoch + 1)
@@ -251,9 +149,9 @@ def main():
 
             if (i_epoch + 1) % args.n_epoch_test == 0:
                 if (i_epoch + 1) == args.n_epoch:   # if last epoch, we creare 2D images with points projections
-                    loss_test, loss_test_abs, loss_test_log, loss_test_abs_gl, loss_test_abs_ml, loss_test_abs_hl, loss_test_adm = eval(model, PCC, args, last_epoch=True)
+                    loss_test, loss_test_abs, loss_test_log, loss_test_abs_gl, loss_test_abs_ml, loss_test_abs_hl, loss_test_adm = eval(model, PCC, test_set, params, args, test_list, mean_dataset, stats_path, stats_file, last_epoch=True)
                 else:
-                    loss_test, loss_test_abs, loss_test_log, _, _, _, loss_test_adm = eval(model, PCC, args)
+                    loss_test, loss_test_abs, loss_test_log, _, _, _, loss_test_adm = eval(model, PCC, test_set, params, args, test_list, mean_dataset, stats_path, stats_file)
                 gc.collect()
                 if args.adm:
                     print(TESTCOLOR + 'Test Loss: %1.4f Test Loss Abs: %1.4f Test Loss Log: %1.4f Test Loss Adm: %1.4f' % (loss_test, loss_test_abs, loss_test_log, loss_test_adm) + NORMALCOLOR)
@@ -395,7 +293,7 @@ def main():
 
         if args.nb_stratum == 2:
             mean_cross_fold_test = np.mean(loss_test_list), np.mean(loss_test_abs_list), np.mean(
-                loss_test_log_list), np.mean(loss_test_abs_gl_list)
+                loss_test_log_list), np.mean(loss_test_abs_gl_list), np.mean(loss_test_abs_ml_list)
 
             print_stats(stats_file,
                         "Mean Test Loss " + str(mean_cross_fold_test[0]) + " Loss abs " + str(
@@ -418,11 +316,6 @@ def main():
                             mean_cross_fold_test[4]) + " Loss abs HL " + str(
                             mean_cross_fold_test[5]),
                         print_to_console=True)
-
-    print(mean_cross_fold_train)
-    print(mean_cross_fold_test)
-
-
 
 
 if __name__ == "__main__":

@@ -3,7 +3,7 @@ from matplotlib import colors
 import numpy as np
 import torch
 from osgeo import gdal, osr
-from useful_functions import print_stats
+from utils.useful_functions import print_stats
 import torch.nn as nn
 plt.rcParams["font.size"] = 25
 
