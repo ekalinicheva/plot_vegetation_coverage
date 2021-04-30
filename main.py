@@ -260,7 +260,7 @@ def main():
 
         if args.nb_stratum == 2:
             mean_cross_fold_test = np.mean(loss_test_list), np.mean(loss_test_abs_list), np.mean(
-                loss_test_log_list), np.mean(loss_test_abs_gl_list), np.mean(loss_test_adm_list)
+                loss_test_log_list), np.mean(loss_test_abs_gl_list), np.mean(loss_test_abs_ml_list), np.mean(loss_test_adm_list)
 
             print_stats(stats_file,
                         "Mean Test Loss " + str(mean_cross_fold_test[0]) + " Loss abs " + str(
