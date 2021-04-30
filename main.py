@@ -31,8 +31,8 @@ torch.cuda.empty_cache()
 
 parser = argparse.ArgumentParser(description='model')
 args = parser.parse_args()
-args.n_epoch = 200             # number of training epochs
-args.n_epoch_test = 5           # we evaluate every -th epoch
+args.n_epoch = 1             # number of training epochs
+args.n_epoch_test = 1           # we evaluate every -th epoch
 args.batch_size = 20
 args.n_class = 4                # size of the output vector
 args.input_feats = 'xyzrgbnir'  # point features that we keep. in this code, we keep them all. permuting those letters will break everything
