@@ -23,7 +23,7 @@ from data_loader.loader import *
 from utils.reproject_to_2d_and_predict_plot_coverage import *
 from em_gamma.get_gamma_params import *
 from utils.open_las import open_las
-from model.loss_functions import loss_abs_gl_ml, loss_loglikelihood, loss_abs_adm
+from model.loss_functions import *
 
 
 
@@ -54,7 +54,7 @@ args.soft = True                # Wheather we use sortmax layer of sigmoid
 args.m = 1                      # loss regularization
 args.z_max = 24                 # maximum z value for data normalization
 args.adm = True                 # wheather we compute admissibility or not
-args.nb_stratum = 2
+args.nb_stratum = 3            # [2, 3] Number of vegetation stratum that we compute 2 - ground level + medium level; 3 - ground level + medium level + high level
 
 
 
@@ -101,10 +101,6 @@ def main():
               'loc_g': 0, 'loc_v': 0, 'scale_g': 0.48213167,
               'scale_v': 1.46897231}
 
-    # phi_g = 1 - params["phi"]
-    # phi_v = params["phi"]
-
-
 
     def train(model, PCC, optimizer, args):
         """train for one epoch"""
@@ -129,8 +125,8 @@ def main():
             pred_pointwise, pred_pointwise_b = PCC.run(model, cloud)  # compute the pointwise prediction
             pred_pl, pred_adm = project_to_2d(pred_pointwise, cloud, pred_pointwise_b, PCC, args) # compute plot prediction
 
-            # we compute two losses (negative loglikelihood and the absolute error loss for 2 stratum)
-            loss_abs = loss_abs_gl_ml(pred_pl, gt)  # absolut loss
+            # we compute two losses (negative loglikelihood and the absolute error loss for 2 or 3 stratum)
+            loss_abs = loss_absolute(pred_pl, gt, args)
             loss_log, likelihood = loss_loglikelihood(pred_pointwise, cloud, params, PCC,
                                                       args)  # negative loglikelihood loss
             if args.adm:
@@ -163,6 +159,7 @@ def main():
         loss_meter = tnt.meter.AverageValueMeter()
         loss_meter_abs_gl = tnt.meter.AverageValueMeter()
         loss_meter_abs_ml = tnt.meter.AverageValueMeter()
+        loss_meter_abs_hl = tnt.meter.AverageValueMeter()
         loss_meter_abs_adm = tnt.meter.AverageValueMeter()
 
 
@@ -182,7 +179,7 @@ def main():
             pred_pl, pred_adm = project_to_2d(pred_pointwise, cloud, pred_pointwise_b, PCC, args) # compute plot prediction
 
             # we compute two losses (negative loglikelihood and the absolute error loss for 2 stratum)
-            loss_abs = loss_abs_gl_ml(pred_pl, gt)  # absolut loss
+            loss_abs = loss_absolute(pred_pl, gt, args)  # absolut loss
             loss_log, likelihood = loss_loglikelihood(pred_pointwise, cloud, params, PCC,
                                                       args)  # negative loglikelihood loss
             if args.adm:
@@ -201,11 +198,18 @@ def main():
             if last_epoch:
                 create_final_images(pred_pl, gt, pred_pointwise_b, cloud, likelihood, test_list[index_batch], mean_dataset, stats_path, stats_file,
                                     args, adm=pred_adm)   #create final images with stratum values
-                loss_abs_gl, loss_abs_ml = loss_abs_gl_ml(pred_pl, gt, gl_mv_loss=True) # gl_mv_loss gives separated losses for each stratum
+                component_losses = loss_absolute(pred_pl, gt, args, level_loss=True) # gl_mv_loss gives separated losses for each stratum
+
+
+                if args.nb_stratum == 2:
+                    loss_abs_gl, loss_abs_ml = component_losses
+                else:
+                    loss_abs_gl, loss_abs_ml, loss_abs_hl = component_losses
+                    loss_meter_abs_hl.add(loss_abs_hl.item())
                 loss_meter_abs_gl.add(loss_abs_gl.item())
                 loss_meter_abs_ml.add(loss_abs_ml.item())
 
-        return loss_meter.value()[0], loss_meter_abs.value()[0], loss_meter_log.value()[0], loss_meter_abs_gl.value()[0], loss_meter_abs_ml.value()[0], loss_meter_abs_adm.value()[0]
+        return loss_meter.value()[0], loss_meter_abs.value()[0], loss_meter_log.value()[0], loss_meter_abs_gl.value()[0], loss_meter_abs_ml.value()[0], loss_meter_abs_hl.value()[0], loss_meter_abs_adm.value()[0]
 
 
     def train_full(args):
@@ -247,9 +251,9 @@ def main():
 
             if (i_epoch + 1) % args.n_epoch_test == 0:
                 if (i_epoch + 1) == args.n_epoch:   # if last epoch, we creare 2D images with points projections
-                    loss_test, loss_test_abs, loss_test_log, loss_test_abs_gl, loss_test_abs_ml, loss_test_adm = eval(model, PCC, args, last_epoch=True)
+                    loss_test, loss_test_abs, loss_test_log, loss_test_abs_gl, loss_test_abs_ml, loss_test_abs_hl, loss_test_adm = eval(model, PCC, args, last_epoch=True)
                 else:
-                    loss_test, loss_test_abs, loss_test_log, _, _, loss_test_adm = eval(model, PCC, args)
+                    loss_test, loss_test_abs, loss_test_log, _, _, _, loss_test_adm = eval(model, PCC, args)
                 gc.collect()
                 if args.adm:
                     print(TESTCOLOR + 'Test Loss: %1.4f Test Loss Abs: %1.4f Test Loss Log: %1.4f Test Loss Adm: %1.4f' % (loss_test, loss_test_abs, loss_test_log, loss_test_adm) + NORMALCOLOR)
@@ -261,7 +265,7 @@ def main():
                 writer.add_scalar('Loss/test_abs', loss_test_abs, i_epoch + 1)
                 writer.add_scalar('Loss/test_log', loss_test_log, i_epoch + 1)
         writer.flush()
-        return model, loss_train, loss_train_abs, loss_train_log, loss_train_adm, loss_test, loss_test_abs, loss_test_log, loss_test_abs_gl, loss_test_abs_ml, loss_test_adm
+        return model, loss_train, loss_train_abs, loss_train_log, loss_train_adm, loss_test, loss_test_abs, loss_test_log, loss_test_abs_gl, loss_test_abs_ml, loss_test_abs_hl, loss_test_adm
 
 
 
@@ -284,6 +288,7 @@ def main():
     loss_test_log_list = []
     loss_test_abs_gl_list = []
     loss_test_abs_ml_list = []
+    loss_test_abs_hl_list = []
     loss_test_adm_list = []
 
 
@@ -299,7 +304,7 @@ def main():
         train_set = tnt.dataset.ListDataset(train_list,
                                             functools.partial(cloud_loader, dataset=dataset, df_gt=df_gt, train=True, args=args))
 
-        trained_model, loss_train, loss_train_abs, loss_train_log, loss_train_adm, loss_test, loss_test_abs, loss_test_log, loss_test_abs_gl, loss_test_abs_ml, loss_test_abs_adm = train_full(args)
+        trained_model, loss_train, loss_train_abs, loss_train_log, loss_train_adm, loss_test, loss_test_abs, loss_test_log, loss_test_abs_gl, loss_test_abs_ml, loss_test_abs_hl, loss_test_abs_adm = train_full(args)
 
         # save the trained model
         PATH = stats_path + "model_ss_" + str(args.subsample_size) + "_dp_" + str(args.diam_pix) + "_fold_" + str(fold_id) + ".pt"
@@ -318,8 +323,14 @@ def main():
             print_stats(stats_file,
                         "Fold_" + str(fold_id) + " Test Loss " + str(loss_test) + " Loss abs " + str(loss_test_abs) + " Loss log " + str(loss_test_log),
                         print_to_console=True)
-        print_stats(stats_file, "Fold_" + str(fold_id) + " Test Loss abs GL " + str(loss_test_abs_gl) + " Test Loss abs ML " + str(
-            loss_test_abs_ml), print_to_console=True)
+
+        if args.nb_stratum == 2:
+            print_stats(stats_file, "Fold_" + str(fold_id) + " Test Loss abs GL " + str(loss_test_abs_gl) + " Test Loss abs ML " + str(
+                loss_test_abs_ml), print_to_console=True)
+        else:
+            print_stats(stats_file, "Fold_" + str(fold_id) + " Test Loss abs GL " + str(loss_test_abs_gl) + " Test Loss abs ML " + str(
+                loss_test_abs_ml) + " Test Loss abs HL " + str(
+                loss_test_abs_hl), print_to_console=True)
 
         loss_train_list.append(loss_train)
         loss_train_abs_list.append(loss_train_abs)
@@ -331,6 +342,7 @@ def main():
         loss_test_log_list.append(loss_test_log)
         loss_test_abs_gl_list.append(loss_test_abs_gl)
         loss_test_abs_ml_list.append(loss_test_abs_ml)
+        loss_test_abs_hl_list.append(loss_test_abs_hl)
         loss_test_adm_list.append(loss_test_abs_adm)
 
 
@@ -343,34 +355,69 @@ def main():
 
     if args.adm:
         mean_cross_fold_train = np.mean(loss_train_list), np.mean(loss_train_abs_list), np.mean(loss_train_log_list), np.mean(loss_train_adm_list)
-        mean_cross_fold_test = np.mean(loss_test_list), np.mean(loss_test_abs_list), np.mean(
-            loss_test_log_list), np.mean(loss_test_abs_gl_list), np.mean(loss_test_abs_ml_list), np.mean(loss_test_adm_list)
         print_stats(stats_file,
                     "Mean Train Loss " + str(mean_cross_fold_train[0]) + " Loss abs " + str(
-                        mean_cross_fold_train[1]) + " Loss log " + str(mean_cross_fold_train[2])+ " Loss ADM " + str(mean_cross_fold_train[3]),
+                        mean_cross_fold_train[1]) + " Loss log " + str(mean_cross_fold_train[2]) + " Loss ADM " + str(mean_cross_fold_train[3]),
                     print_to_console=True)
 
-        print_stats(stats_file,
-                    "Mean Test Loss " + str(mean_cross_fold_test[0]) + " Loss abs " + str(
-                        mean_cross_fold_test[1]) + " Loss log " + str(mean_cross_fold_test[2]) + " Loss abs GL " + str(
-                        mean_cross_fold_test[3]) + " Loss abs ML " + str(mean_cross_fold_test[4]) + " Loss ADM " + str(mean_cross_fold_test[5]),
-                    print_to_console=True)
+        if args.nb_stratum == 2:
+            mean_cross_fold_test = np.mean(loss_test_list), np.mean(loss_test_abs_list), np.mean(
+                loss_test_log_list), np.mean(loss_test_abs_gl_list), np.mean(loss_test_adm_list)
+
+            print_stats(stats_file,
+                        "Mean Test Loss " + str(mean_cross_fold_test[0]) + " Loss abs " + str(
+                            mean_cross_fold_test[1]) + " Loss log " + str(
+                            mean_cross_fold_test[2]) + " Loss abs GL " + str(
+                            mean_cross_fold_test[3]) + " Loss abs ML " + str(
+                            mean_cross_fold_test[4]) + " Loss ADM " + str(mean_cross_fold_test[5]),
+                        print_to_console=True)
+
+        else:   # 3 stratum
+            mean_cross_fold_test = np.mean(loss_test_list), np.mean(loss_test_abs_list), np.mean(
+                loss_test_log_list), np.mean(loss_test_abs_gl_list), np.mean(loss_test_abs_ml_list), np.mean(loss_test_abs_hl_list), np.mean(loss_test_adm_list)
+
+            print_stats(stats_file,
+                        "Mean Test Loss " + str(mean_cross_fold_test[0]) + " Loss abs " + str(
+                            mean_cross_fold_test[1]) + " Loss log " + str(
+                            mean_cross_fold_test[2]) + " Loss abs GL " + str(
+                            mean_cross_fold_test[3]) + " Loss abs ML " + str(
+                            mean_cross_fold_test[4]) + " Loss abs HL " + str(
+                            mean_cross_fold_test[5]) + " Loss ADM " + str(mean_cross_fold_test[6]),
+                        print_to_console=True)
 
 
     else:
         mean_cross_fold_train = np.mean(loss_train_list), np.mean(loss_train_abs_list), np.mean(loss_train_log_list)
-        mean_cross_fold_test = np.mean(loss_test_list), np.mean(loss_test_abs_list), np.mean(
-            loss_test_log_list), np.mean(loss_test_abs_gl_list), np.mean(loss_test_abs_ml_list)
         print_stats(stats_file,
                     "Mean Train Loss " + str(mean_cross_fold_train[0]) + " Loss abs " + str(
                         mean_cross_fold_train[1]) + " Loss log " + str(mean_cross_fold_train[2]),
                     print_to_console=True)
 
-        print_stats(stats_file,
-                    "Mean Test Loss " + str(mean_cross_fold_test[0]) + " Loss abs " + str(
-                        mean_cross_fold_test[1]) + " Loss log " + str(mean_cross_fold_test[2]) + " Loss abs GL " + str(
-                        mean_cross_fold_test[3]) + " Loss abs ML " + str(mean_cross_fold_test[4]),
-                    print_to_console=True)
+        if args.nb_stratum == 2:
+            mean_cross_fold_test = np.mean(loss_test_list), np.mean(loss_test_abs_list), np.mean(
+                loss_test_log_list), np.mean(loss_test_abs_gl_list)
+
+            print_stats(stats_file,
+                        "Mean Test Loss " + str(mean_cross_fold_test[0]) + " Loss abs " + str(
+                            mean_cross_fold_test[1]) + " Loss log " + str(
+                            mean_cross_fold_test[2]) + " Loss abs GL " + str(
+                            mean_cross_fold_test[3]) + " Loss abs ML " + str(
+                            mean_cross_fold_test[4]),
+                        print_to_console=True)
+
+        else:  # 3 stratum
+            mean_cross_fold_test = np.mean(loss_test_list), np.mean(loss_test_abs_list), np.mean(
+                loss_test_log_list), np.mean(loss_test_abs_gl_list), np.mean(loss_test_abs_ml_list), np.mean(
+                loss_test_abs_hl_list)
+
+            print_stats(stats_file,
+                        "Mean Test Loss " + str(mean_cross_fold_test[0]) + " Loss abs " + str(
+                            mean_cross_fold_test[1]) + " Loss log " + str(
+                            mean_cross_fold_test[2]) + " Loss abs GL " + str(
+                            mean_cross_fold_test[3]) + " Loss abs ML " + str(
+                            mean_cross_fold_test[4]) + " Loss abs HL " + str(
+                            mean_cross_fold_test[5]),
+                        print_to_console=True)
 
     print(mean_cross_fold_train)
     print(mean_cross_fold_test)

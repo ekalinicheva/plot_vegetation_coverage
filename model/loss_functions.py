@@ -61,3 +61,21 @@ def loss_abs_gl_ml_hl(pred_pl, gt):
 # Admissibility loss
 def loss_abs_adm(pred_adm, gt_adm):
     return ((pred_adm - gt_adm[:, -1]).pow(2) + 0.0001).pow(0.5).mean()
+
+
+def loss_absolute(pred_pl, gt, args, level_loss=False):
+    """
+    level_loss: wheather we want to obtain losses for different vegetation levels separately
+    """
+    if args.nb_stratum==2:
+        if level_loss:  # if we want to get separate losses for ground level and medium level
+            return ((pred_pl[:, [0, 2]] - gt[:, [0, 2]]).pow(2) + 0.0001).pow(0.5).mean(0)
+        return ((pred_pl[:, [0, 2]] - gt[:, [0, 2]]).pow(2) + 0.0001).pow(0.5).mean()
+    if args.nb_stratum==3:
+        gt_has_values = ~torch.isnan(gt)
+        gt_has_values = gt_has_values[:, [0, 2, 3]]
+        if level_loss:  # if we want to get separate losses for ground level and medium level
+            return ((pred_pl[:, [0, 2, 3]][gt_has_values] - gt[:, [0, 2, 3]][gt_has_values]).pow(2) + 0.0001).pow(
+            0.5).mean(0)
+        return ((pred_pl[:, [0, 2, 3]][gt_has_values] - gt[:, [0, 2, 3]][gt_has_values]).pow(2) + 0.0001).pow(
+            0.5).mean()

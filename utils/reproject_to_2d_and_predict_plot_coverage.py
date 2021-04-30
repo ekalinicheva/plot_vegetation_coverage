@@ -3,7 +3,7 @@ import torch
 from torch_scatter import scatter_max, scatter_mean
 
 
-def project_to_2d(pred_pointwise, cloud, pred_pointwise_b, PCC, args, nb_stratum=2):
+def project_to_2d(pred_pointwise, cloud, pred_pointwise_b, PCC, args):
     """
     We do all the computation to obtain
     pred_pl - [Bx4] prediction vector for the plot
@@ -39,7 +39,7 @@ def project_to_2d(pred_pointwise, cloud, pred_pointwise_b, PCC, args, nb_stratum
         index_group = index_group.cuda()
     pixel_max = scatter_max(pred_pointwise.T, index_batches)[0]
 
-    if nb_stratum==2:
+    if args.nb_stratum==2:
         # We compute prediction values per pixel
         c_low_veg_pix = pixel_max[0, :] / (pixel_max[:2, :].sum(0))
         c_bare_soil_pix = pixel_max[1, :] / (pixel_max[:2, :].sum(0))
@@ -53,7 +53,7 @@ def project_to_2d(pred_pointwise, cloud, pred_pointwise_b, PCC, args, nb_stratum
         # c_other = scatter_mean(c_other_pix, index_group)
         pred_pl = torch.stack([c_low_veg, c_bare_soil, c_med_veg]).T
 
-    if nb_stratum == 3:
+    if args.nb_stratum == 3:
         # We compute prediction values par pixel
         c_low_veg_pix = pixel_max[0, :]
         c_bare_soil_pix = 1 - c_low_veg_pix
