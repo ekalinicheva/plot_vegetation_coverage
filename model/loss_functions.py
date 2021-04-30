@@ -74,8 +74,8 @@ def loss_absolute(pred_pl, gt, args, level_loss=False):
     if args.nb_stratum==3:
         gt_has_values = ~torch.isnan(gt)
         gt_has_values = gt_has_values[:, [0, 2, 3]]
-        if level_loss:   # if we want to get separate losses for ground level and medium level
-            return ((pred_pl[:, [0, 2, 3]] - gt[:, [0, 2, 3]]).pow(2) + 0.0001).pow(
-                0.5).mean(0)
+        if level_loss:  # if we want to get separate losses for ground level and medium level
+            return ((pred_pl[:, [0, 2, 3]][gt_has_values] - gt[:, [0, 2, 3]][gt_has_values]).pow(2) + 0.0001).pow(
+            0.5).mean(0)
         return ((pred_pl[:, [0, 2, 3]][gt_has_values] - gt[:, [0, 2, 3]][gt_has_values]).pow(2) + 0.0001).pow(
             0.5).mean()
