@@ -126,6 +126,7 @@ create_dir(stats_path)
 print_stats(stats_file, str(args), print_to_console=True) # save all the args parameters
 
 
+
 def main():
     # We open las files and create a dataset
     all_points, dataset, mean_dataset = open_las(las_folder)
