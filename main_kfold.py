@@ -244,7 +244,6 @@ def main():
             writer.add_scalar('Loss/train_log', loss_train_log, i_epoch + 1)
 
 
-
             if (i_epoch + 1) % args.n_epoch_test == 0:
                 if (i_epoch + 1) == args.n_epoch:   # if last epoch, we creare 2D images with points projections
                     loss_test, loss_test_abs, loss_test_log, loss_test_abs_gl, loss_test_abs_ml, loss_test_adm = eval(model, PCC, args, last_epoch=True)
@@ -285,7 +284,6 @@ def main():
     loss_test_abs_gl_list = []
     loss_test_abs_ml_list = []
     loss_test_adm_list = []
-
 
 
     fold_id = 1

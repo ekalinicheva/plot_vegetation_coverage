@@ -2,6 +2,7 @@ import warnings
 warnings.simplefilter(action='ignore')
 
 import torchnet as tnt
+import gc
 import time
 from torch.utils.tensorboard import SummaryWriter
 
@@ -61,7 +62,7 @@ def eval(model, PCC, test_set, params, args, test_list, mean_dataset, stats_path
         loss_meter.add(loss.item())
         loss_meter_abs.add(loss_abs.item())
         loss_meter_log.add(loss_log.item())
-
+        gc.collect()
 
         if last_epoch:
 

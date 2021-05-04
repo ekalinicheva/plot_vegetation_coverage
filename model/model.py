@@ -30,7 +30,6 @@ class PointNet(nn.Module):
 
         # since we don't know the number of layers in the MLPs, we need to use loops
         # to create the correct number of layers
-
         m1 = MLP_1[-1]  # size of the first embeding F1
         m2 = MLP_2[-1]  # size of the second embeding F2
 
