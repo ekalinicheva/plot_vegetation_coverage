@@ -64,19 +64,20 @@ def eval(model, PCC, test_set, params, args, test_list, mean_dataset, stats_path
 
 
         if last_epoch:
-            create_final_images(pred_pl, gt, pred_pointwise_b, cloud, likelihood, test_list[index_batch], mean_dataset, stats_path, stats_file,
-                                args, adm=pred_adm)  # create final images with stratum values
+
             component_losses = loss_absolute(pred_pl, gt, args, level_loss=True) # gl_mv_loss gives separated losses for each stratum
-
-
             if args.nb_stratum == 2:
                 loss_abs_gl, loss_abs_ml = component_losses
             else:
                 loss_abs_gl, loss_abs_ml, loss_abs_hl = component_losses
                 loss_abs_hl = loss_abs_hl[~torch.isnan(loss_abs_hl)]
-                if len(loss_abs_hl ) >0:
+                if loss_abs_hl.size(0) > 0:
                     loss_meter_abs_hl.add(loss_abs_hl.item())
             loss_meter_abs_gl.add(loss_abs_gl.item())
             loss_meter_abs_ml.add(loss_abs_ml.item())
+
+            create_final_images(pred_pl, gt, pred_pointwise_b, cloud, likelihood, test_list[index_batch], mean_dataset, stats_path, stats_file,
+                                args, adm=pred_adm)  # create final images with stratum values
+
 
     return loss_meter.value()[0], loss_meter_abs.value()[0], loss_meter_log.value()[0], loss_meter_abs_gl.value()[0], loss_meter_abs_ml.value()[0], loss_meter_abs_hl.value()[0], loss_meter_abs_adm.value()[0]

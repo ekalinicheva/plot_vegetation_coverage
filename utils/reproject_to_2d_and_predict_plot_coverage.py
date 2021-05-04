@@ -55,8 +55,10 @@ def project_to_2d(pred_pointwise, cloud, pred_pointwise_b, PCC, args):
 
     if args.nb_stratum == 3:
         # We compute prediction values par pixel
-        c_low_veg_pix = pixel_max[0, :]
-        c_bare_soil_pix = 1 - c_low_veg_pix
+        # c_low_veg_pix = pixel_max[0, :]
+        # c_bare_soil_pix = 1 - c_low_veg_pix
+        c_low_veg_pix = pixel_max[0, :] / (pixel_max[:2, :].sum(0))
+        c_bare_soil_pix = pixel_max[1, :] / (pixel_max[:2, :].sum(0))
         # c_bare_soil_pix = pixel_max[1, :]
         c_med_veg_pix = pixel_max[2, :]
         c_high_veg_pix = pixel_max[3, :]

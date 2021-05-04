@@ -31,7 +31,7 @@ torch.cuda.empty_cache()
 
 parser = argparse.ArgumentParser(description='model')
 args = parser.parse_args()
-args.n_epoch = 200             # number of training epochs
+args.n_epoch = 100             # number of training epochs
 args.n_epoch_test = 5           # we evaluate every -th epoch
 args.batch_size = 20
 args.n_class = 4                # size of the output vector
@@ -42,7 +42,7 @@ args.MLP_2 = [64, 128]
 args.MLP_3 = [64, 32]
 args.subsample_size = 2048 * 2  # subsample cloud size
 args.cuda = 1                   # we use cuda
-args.lr = 1e-3                  # learning rate
+args.lr = 5e-4                  # learning rate
 args.wd = 0.001                 # weight decay for the optimizer
 args.diam_pix = 32              # size of the output stratum raster
 args.drop = 0.4                 # dropout layer probability
@@ -110,11 +110,11 @@ def main():
 
 
 
-    def train_full(args):
+    def train_full(args, fold_id):
         """The full training loop"""
         # initialize the model
         model = PointNet(args.MLP_1, args.MLP_2, args.MLP_3, args)
-        writer = SummaryWriter(results_path + "runs/")
+        writer = SummaryWriter(results_path + "runs/"+run_name + "fold_" + str(fold_id) +"/")
 
         print('Total number of parameters: {}'.format(sum([p.numel() for p in model.parameters()])))
         print(model)
@@ -125,7 +125,7 @@ def main():
 
         # define the optimizer
         optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.wd)
-        scheduler = StepLR(optimizer, step_size=100, gamma=0.1)
+        scheduler = StepLR(optimizer, step_size=50, gamma=0.1)
 
         TESTCOLOR = '\033[104m'
         TRAINCOLOR = '\033[100m'
@@ -202,7 +202,7 @@ def main():
         train_set = tnt.dataset.ListDataset(train_list,
                                             functools.partial(cloud_loader, dataset=dataset, df_gt=df_gt, train=True, args=args))
 
-        trained_model, loss_train, loss_train_abs, loss_train_log, loss_train_adm, loss_test, loss_test_abs, loss_test_log, loss_test_abs_gl, loss_test_abs_ml, loss_test_abs_hl, loss_test_abs_adm = train_full(args)
+        trained_model, loss_train, loss_train_abs, loss_train_log, loss_train_adm, loss_test, loss_test_abs, loss_test_log, loss_test_abs_gl, loss_test_abs_ml, loss_test_abs_hl, loss_test_abs_adm = train_full(args, fold_id)
 
         # save the trained model
         PATH = stats_path + "model_ss_" + str(args.subsample_size) + "_dp_" + str(args.diam_pix) + "_fold_" + str(fold_id) + ".pt"

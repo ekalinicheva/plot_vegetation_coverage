@@ -189,7 +189,7 @@ def main():
         """The full training loop"""
         # initialize the model
         model = PointNet(args.MLP_1, args.MLP_2, args.MLP_3, args)
-        writer = SummaryWriter(results_path+"runs/")
+        writer = SummaryWriter(results_path+ "runs/")
         # model = torch.load("/home/ekaterina/DATASET_regression/RESULTS/2021-04-13_164536/model_ss_4096_dp_32.pt")
 
         print('Total number of parameters: {}'.format(sum([p.numel() for p in model.parameters()])))
