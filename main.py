@@ -28,47 +28,77 @@ np.random.seed(42)
 torch.cuda.empty_cache()
 
 parser = argparse.ArgumentParser(description='model')
-args = parser.parse_args()
 
 # Parameters you should not modify
-args.n_class = 4                # size of the output vector
-args.input_feats = 'xyzrgbnir'  # point features that we keep. in this code, we keep them all. permuting those letters will break everything
-args.n_input_feats = len(args.input_feats)
-args.MLP_1 = [32, 32]           # parameters of mlp blocks (output size of each layer)
-args.MLP_2 = [64, 128]
-args.MLP_3 = [64, 32]
-args.subsample_size = 2048 * 2  # subsample cloud size
-args.cuda = 1                   # we use cuda
-args.lr = 5e-4                  # learning rate
-args.wd = 0.001                 # weight decay for the optimizer
-args.diam_pix = 32              # size of the output stratum raster
-args.drop = 0.4                 # dropout layer probability
-args.soft = True                # Wheather we use sortmax layer of sigmoid
-args.m = 1                      # loss regularization
+parser.add_argument('--n_class', default=4, type=int, help="Size of the model output vector. In our case 4 - different vegetation coverage types")
+parser.add_argument('--input_feats', default='xyzrgbnir', type=str, help="Point features that we keep. in this code, we keep them all. permuting those letters will break everything. To be modified")
+parser.add_argument('--MLP_1', default=[32, 32], type=list, help="Parameters of the 1st MLP block (output size of each layer). See PointNet article")
+parser.add_argument('--MLP_2', default=[64, 128], type=list, help="Parameters of the 2nd MLP block (output size of each layer). See PointNet article")
+parser.add_argument('--MLP_3', default=[64, 32], type=list, help="Parameters of the 3rd MLP block (output size of each layer). See PointNet article")
+parser.add_argument('--subsample_size', default=4096, type=int, help="Subsample cloud size")
+parser.add_argument('--cuda', default=1, type=int, help="Whether we use cuda (1) or not (0)")
+parser.add_argument('--wd', default=0.001, type=float, help="Weight decay for the optimizer")
+parser.add_argument('--diam_pix', default=32, type=int, help="Size of the output stratum raster (its diameter in pixels)")
+parser.add_argument('--drop', default=0.4, type=float, help="Probability value of the DropOut layer of the model")
+parser.add_argument('--soft', default=True, type=bool, help="Whether we use sortmax layer for the model output (True) of sigmoid (False)")
+parser.add_argument('--m', default=1, type=float, help="Loss regularization. The weight of the negative loglikelihood loss in the total loss")
 
+
+# args.n_class = 4                # size of the output vector
+# args.input_feats = 'xyzrgbnir'  # point features that we keep. in this code, we keep them all. permuting those letters will break everything
+# args.n_input_feats = len(args.input_feats)
+# args.MLP_1 = [32, 32]           # parameters of mlp blocks (output size of each layer)
+# args.MLP_2 = [64, 128]
+# args.MLP_3 = [64, 32]
+# args.subsample_size = 2048 * 2  # subsample cloud size
+# args.cuda = 1                   # we use cuda
+# args.lr = 5e-4                  # learning rate
+# args.wd = 0.001                 # weight decay for the optimizer
+# args.diam_pix = 32              # size of the output stratum raster
+# args.drop = 0.4                 # dropout layer probability
+# args.soft = True                # Wheather we use sortmax layer of sigmoid
+# args.m = 1                      # loss regularization
+
+
+#
+# # Parameters you can modify
+# args.lr = 5e-4                  # learning rate
+# args.n_epoch = 100             # number of training epochs
+# args.n_epoch_test = 5           # we evaluate every -th epoch
+# args.batch_size = 20
+# args.z_max = 24                 # maximum z value for data normalization, obtained from the normalized dataset analysis
+# args.adm = True                # wheather we compute admissibility or not
+# args.nb_stratum = 3             # [2, 3] Number of vegetation stratum that we compute 2 - ground level + medium level; 3 - ground level + medium level + high level
+# args.folds = 5                  # number of folds to train the model
+# args.path = "/home/ign.fr/ekalinicheva/DATASET_regression/"  # folder directory
+# # args.path = "/home/ekaterina/DATASET_regression/"
+# args.gt_file = "resultats_placettes_combo.csv"          # GT csv file
+# args.plot_folder_name = "placettes_combo/"
 
 # Parameters you can modify
-args.n_epoch = 100             # number of training epochs
-args.n_epoch_test = 5           # we evaluate every -th epoch
-args.batch_size = 20
+# Parameters you can modify
+parser.add_argument('--lr', default=5e-4, type=float, help="Learning rate")
+parser.add_argument('--n_epoch', default=100, type=int, help="Number of training epochs")
+parser.add_argument('--n_epoch_test', default=5, type=int, help="We evaluate every -th epoch")
+parser.add_argument('--batch_size', default=20, type=int, help="Size of the training batch")
+parser.add_argument('--adm', default=True, type=bool, help="Whether we compute admissibility or not")
+parser.add_argument('--nb_stratum', default=3, type=int, help="[2, 3] Number of vegetation stratum that we compute 2 - ground level + medium level; 3 - ground level + medium level + high level")
+parser.add_argument('--folds', default=5, type=int, help="Number of folds for cross validation model training")
+parser.add_argument('--path', default="/home/ign.fr/ekalinicheva/DATASET_regression/", type=str, help="Main folder directory")
+parser.add_argument('--gt_file', default="resultats_placettes_combo.csv", type=str, help="Name of GT *.cvs file")
+parser.add_argument('--plot_folder_name', default="placettes_combo", type=str, help="Name of GT *.cvs file")
+
+args = parser.parse_args()
+
+
+args.n_input_feats = len(args.input_feats)  # number input features
 args.z_max = 24                 # maximum z value for data normalization, obtained from the normalized dataset analysis
-args.adm = True                # wheather we compute admissibility or not
-args.nb_stratum = 3             # [2, 3] Number of vegetation stratum that we compute 2 - ground level + medium level; 3 - ground level + medium level + high level
 
 
 assert(args.nb_stratum in [2, 3]), "Number of stratum should be 2 or 3!"
 assert(args.n_epoch % args.n_epoch_test == 0), "Number of train epoch should be dividable by number of test epoch"
 
-
-# Your working directory
-path = "/home/ign.fr/ekalinicheva/DATASET_regression/"  # folder directory
-# path = "/home/ekaterina/DATASET_regression/"
-
-
-
-gt_file = "resultats_placettes_combo.csv"          # GT csv file
-las_folder = path + "placettes_combo/"             # folder with las files
-
+las_folder = args.path + args.plot_folder_name + "/"            # folder with las files
 
 # We keep track of everything (time ans stats)
 start_time = time.time()
@@ -78,9 +108,9 @@ run_name = str(time.strftime("%Y-%m-%d_%H%M%S"))
 
 # We write results to different folders depending on the chosen parameters
 if args.nb_stratum == 2:
-    results_path = stats_path = path + "RESULTS/"
+    results_path = stats_path = args.path + "RESULTS/"
 else:
-    results_path = stats_path = path + "RESULTS_3_stratum/"
+    results_path = stats_path = args.path + "RESULTS_3_stratum/"
 
 if args.adm:
     results_path = results_path + "admissibility/"
@@ -147,13 +177,12 @@ def main():
 
 
 
-    df_gt = pd.read_csv(path + gt_file, sep=',', header=0)  # we open GT file
+    df_gt = pd.read_csv(args.path + args.gt_file, sep=',', header=0)  # we open GT file
     placettes = df_gt['Name'].to_numpy()    # We extract the names of the plots to create train and test list
 
 
-    # We use 5 folds cross validation
-    folds = 5
-    kf = KFold(n_splits=folds, random_state=42, shuffle=True)
+    # We use several folds for cross validation (set the number in args)
+    kf = KFold(n_splits=args.folds, random_state=42, shuffle=True)
 
     # None lists that will stock stats for each fold, so we can compute the mean at the end
     all_folds_loss_train_lists = None
