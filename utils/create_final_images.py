@@ -147,7 +147,7 @@ def visualize(image_soil, image_med_veg, cloud, prediction, pl_id, stats_path, a
                     [0, 0, 1],
                     [1, 0, 0]]
     colors_pred = np.matmul(colors_pred, color_matrix)
-    ax3.scatter(cloud[0], cloud[1], cloud[2]*args.z_max, c=colors_pred, s=10, vmin=0, vmax=1)
+    ax3.scatter(cloud[0], cloud[1], cloud[2]*args.z_max, c=colors_pred, s=10, vmin=0, vmax=1, alpha=1)
     ax3.set_title('Pointwise prediction')
     ax3.set_yticklabels([])
     ax3.set_xticklabels([])
@@ -282,7 +282,8 @@ def create_final_images(pred_pl, gt, pred_pointwise_b, cloud, likelihood, plot_n
         # 1. original point cloud, 2. LV image, 3. pointwise prediction point cloud, 4. MV image, 5.Stratum probabilities point cloud, 6.(optional) HV image
         visualize(image_ground, image_med_veg, current_cloud, pred_cloud, plot_name, stats_path, args, txt=text,
                   scores=likelihood, image_high_veg=image_high_veg)
-        visualize_article(image_ground, image_med_veg, image_high_veg, current_cloud, plot_name, stats_path, args, txt=text)
+        if args.nb_stratum==3:
+            visualize_article(image_ground, image_med_veg, image_high_veg, current_cloud, plot_name, stats_path, args, txt=text)
 
 
 # We create a tiff file with 2 or 3 stratum

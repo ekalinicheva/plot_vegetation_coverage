@@ -32,7 +32,7 @@ def main():
     parser.add_argument('--path', default="/home/ign.fr/ekalinicheva/DATASET_regression/", type=str,
                         help="Main folder directory")
     parser.add_argument('--gt_file', default="resultats_placettes_combo.csv", type=str, help="Name of GT *.cvs file")
-    parser.add_argument('--plot_folder_name', default="placettes_combo", type=str, help="Name of GT *.cvs file")
+    parser.add_argument('--plot_folder_name', default="placettes_combo", type=str, help="Name of GT *.csv file")
     parser.add_argument('--cuda', default=1, type=int, help="Whether we use cuda (1) or not (0)")
     parser.add_argument('--folds', default=5, type=int, help="Number of folds for cross validation model training")
 
@@ -63,7 +63,7 @@ def main():
                         help="Parameters of the 3rd MLP block (output size of each layer). See PointNet article")
     parser.add_argument('--drop', default=0.4, type=float, help="Probability value of the DropOut layer of the model")
     parser.add_argument('--soft', default=True, type=bool,
-                        help="Whether we use sortmax layer for the model output (True) of sigmoid (False)")
+                        help="Whether we use softmax layer for the model output (True) of sigmoid (False)")
 
     # Optimization Parameters
     parser.add_argument('--wd', default=0.001, type=float, help="Weight decay for the optimizer")
@@ -99,8 +99,8 @@ def main():
     else:
         results_path = os.path.join(results_path, "only_stratum/")
 
-    #stats_path = os.path.join(results_path, run_name) + "/"
-    print("PResults folder: ", stats_path)
+    stats_path = os.path.join(results_path, run_name) + "/"
+    print("Results folder: ", stats_path)
     stats_file = os.path.join(stats_path, "stats.txt")
     create_dir(stats_path)
     # We open las files and create a dataset
@@ -113,7 +113,6 @@ def main():
     print_stats(stats_file, str(args), print_to_console=True)  # save all the args parameters
 
     # #   Parameters of gamma distributions for two stratum
-
     gamma_file = os.path.join(stats_path, "gamma.pkl")
     if not os.path.isfile(gamma_file):
         print("Computing gamma mixture (should only happen once)")
@@ -124,7 +123,7 @@ def main():
         print("Found precomputed Gamma parameters")
         with open(gamma_file, 'rb') as f:
             params = pickle.load(f)
-    print_stats(stats_file, str(params), print_to_console=False)
+    print_stats(stats_file, str(params), print_to_console=True)
 
     def train_full(args, fold_id):
         """The full training loop"""
