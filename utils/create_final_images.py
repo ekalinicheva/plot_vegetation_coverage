@@ -241,18 +241,17 @@ def create_final_images(pred_pl, gt, pred_pointwise_b, cloud, likelihood, plot_n
             k, m = xy.T[where][0]
             maxpool = nn.MaxPool1d(len(where))
             max_pool_val = maxpool(pred_cloud[:, where].unsqueeze(0)).cpu().detach().numpy().flatten()
-            if args.nb_stratum == 2:
+
+            if args.norm_ground:  # we normalize ground level coverage values
                 proba_low_veg = max_pool_val[0] / (max_pool_val[:2].sum())
-                proba_med_veg = max_pool_val[2]
-                image_ground[m, k] = proba_low_veg
-                image_med_veg[m, k] = proba_med_veg
-            else:
-                # proba_low_veg = max_pool_val[0]
-                proba_low_veg = max_pool_val[0] / (max_pool_val[:2].sum())
-                proba_med_veg = max_pool_val[2]
+            else:   # we do not normalize anything, as bare soil coverage does not participate in absolute loss
+                proba_low_veg = max_pool_val[0]
+            proba_med_veg = max_pool_val[2]
+            image_ground[m, k] = proba_low_veg
+            image_med_veg[m, k] = proba_med_veg
+
+            if args.nb_stratum == 3:
                 proba_high_veg = max_pool_val[3]
-                image_ground[m, k] = proba_low_veg
-                image_med_veg[m, k] = proba_med_veg
                 image_high_veg[m, k] = proba_high_veg
         image_ground = np.flip(image_ground, axis=0)  # we flip along y axis as the 1st raster row starts with 0
         image_med_veg = np.flip(image_med_veg, axis=0)
@@ -288,11 +287,12 @@ def create_final_images(pred_pl, gt, pred_pointwise_b, cloud, likelihood, plot_n
 
 # We create a tiff file with 2 or 3 stratum
 def create_tiff(nb_channels, new_tiff_name, width, height, datatype, data_array, geotransformation):
-    driver_tiff = gdal.GetDriverByName("GTiff")
     # We set Lambert 93 projection
     srs = osr.SpatialReference()
     srs.ImportFromEPSG(2154)
     proj = srs.ExportToWkt()
+    # We create a datasource
+    driver_tiff = gdal.GetDriverByName("GTiff")
     dst_ds = driver_tiff.Create(new_tiff_name, width, height, nb_channels, datatype)
     if nb_channels == 1:
         dst_ds.GetRasterBand(1).WriteArray(data_array)

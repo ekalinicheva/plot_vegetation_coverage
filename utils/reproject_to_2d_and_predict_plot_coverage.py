@@ -39,13 +39,16 @@ def project_to_2d(pred_pointwise, cloud, pred_pointwise_b, PCC, args):
         index_group = index_group.cuda()
     pixel_max = scatter_max(pred_pointwise.T, index_batches)[0]
 
-    if args.nb_stratum==2:
-        # We compute prediction values per pixel
+    # We compute prediction values per pixel
+    if args.norm_ground:    # we normalize ground level coverage values, so c_low[i]+c_bare[i]=1
         c_low_veg_pix = pixel_max[0, :] / (pixel_max[:2, :].sum(0))
         c_bare_soil_pix = pixel_max[1, :] / (pixel_max[:2, :].sum(0))
-        c_med_veg_pix = pixel_max[2, :]
-        # c_other_pix = 1 - c_med_veg_pix
+    else:   # we do not normalize anything, as bare soil coverage does not participate in absolute loss
+        c_low_veg_pix = pixel_max[0, :]
+        c_bare_soil_pix = 1 - c_low_veg_pix
+    c_med_veg_pix = pixel_max[2, :]
 
+    if args.nb_stratum==2:
         # We compute prediction values per plot
         c_low_veg = scatter_mean(c_low_veg_pix, index_group)
         c_bare_soil = scatter_mean(c_bare_soil_pix, index_group)
@@ -53,17 +56,10 @@ def project_to_2d(pred_pointwise, cloud, pred_pointwise_b, PCC, args):
         # c_other = scatter_mean(c_other_pix, index_group)
         pred_pl = torch.stack([c_low_veg, c_bare_soil, c_med_veg]).T
 
-    if args.nb_stratum == 3:
-        # We compute prediction values par pixel
-        # c_low_veg_pix = pixel_max[0, :]
-        # c_bare_soil_pix = 1 - c_low_veg_pix
-        c_low_veg_pix = pixel_max[0, :] / (pixel_max[:2, :].sum(0))
-        c_bare_soil_pix = pixel_max[1, :] / (pixel_max[:2, :].sum(0))
-        # c_bare_soil_pix = pixel_max[1, :]
-        c_med_veg_pix = pixel_max[2, :]
-        c_high_veg_pix = pixel_max[3, :]
+    else:   # 3 stratum
+        c_high_veg_pix = pixel_max[3, :]    # we equally compute raster for high vegetation
 
-        # We compute prediction values by each zone
+        # We compute prediction values per plot
         c_low_veg = scatter_mean(c_low_veg_pix, index_group)
         c_bare_soil = scatter_mean(c_bare_soil_pix, index_group)
         c_med_veg = scatter_mean(c_med_veg_pix, index_group)

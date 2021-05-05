@@ -19,12 +19,11 @@ from data_loader.loader import *
 from utils.open_las import open_las
 from model.loss_functions import *
 from model.accuracy import *
+from em_gamma.get_gamma_parameters_em import *
 
 
 print(torch.cuda.is_available())
 np.random.seed(42)
-
-
 torch.cuda.empty_cache()
 
 parser = argparse.ArgumentParser(description='model')
@@ -42,6 +41,7 @@ parser.add_argument('--diam_pix', default=32, type=int, help="Size of the output
 parser.add_argument('--drop', default=0.4, type=float, help="Probability value of the DropOut layer of the model")
 parser.add_argument('--soft', default=True, type=bool, help="Whether we use sortmax layer for the model output (True) of sigmoid (False)")
 parser.add_argument('--m', default=1, type=float, help="Loss regularization. The weight of the negative loglikelihood loss in the total loss")
+parser.add_argument('--norm_ground', default=False, type=bool, help="Whether we normalize low vegetation and bare soil values, so LV+BS=1 (True) or we keep unmodified LV value (False) (recommended)")
 
 
 # args.n_class = 4                # size of the output vector
@@ -78,6 +78,8 @@ parser.add_argument('--m', default=1, type=float, help="Loss regularization. The
 # Parameters you can modify
 # Parameters you can modify
 parser.add_argument('--lr', default=5e-4, type=float, help="Learning rate")
+parser.add_argument('--step_size', default=50, type=int, help="After this number of steps we decrease learning rate. (Period of learning rate decay)")
+parser.add_argument('--lr_decay', default=0.1, type=float, help="We multiply learning rate by this value after certain number of steps (see --step_size). (Multiplicative factor of learning rate decay)")
 parser.add_argument('--n_epoch', default=100, type=int, help="Number of training epochs")
 parser.add_argument('--n_epoch_test', default=5, type=int, help="We evaluate every -th epoch")
 parser.add_argument('--batch_size', default=20, type=int, help="Size of the training batch")
@@ -90,20 +92,15 @@ parser.add_argument('--plot_folder_name', default="placettes_combo", type=str, h
 
 args = parser.parse_args()
 
-
-args.n_input_feats = len(args.input_feats)  # number input features
-args.z_max = 24                 # maximum z value for data normalization, obtained from the normalized dataset analysis
-
-
 assert(args.nb_stratum in [2, 3]), "Number of stratum should be 2 or 3!"
 assert(args.n_epoch % args.n_epoch_test == 0), "Number of train epoch should be dividable by number of test epoch"
+assert(args.lr_decay < 1), "Learning rate decrease should be smaller than 1, as learning rate should decrease"
 
 las_folder = args.path + args.plot_folder_name + "/"            # folder with las files
 
 # We keep track of everything (time ans stats)
 start_time = time.time()
 print(time.strftime("%H:%M:%S", time.gmtime(start_time)))
-
 run_name = str(time.strftime("%Y-%m-%d_%H%M%S"))
 
 # We write results to different folders depending on the chosen parameters
@@ -119,24 +116,29 @@ else:
 
 
 stats_path = results_path + run_name + "/"
-print(stats_path)
-
+print("Path to statistics ", stats_path)
 stats_file = stats_path + "stats.txt"
 create_dir(stats_path)
-print_stats(stats_file, str(args), print_to_console=True) # save all the args parameters
 
 
 
 def main():
     # We open las files and create a dataset
     all_points, dataset, mean_dataset = open_las(las_folder)
+    z_all = all_points[:, 2]
+    args.z_max = np.max(z_all)   # maximum z value for data normalization, obtained from the normalized dataset analysis
+    args.n_input_feats = len(args.input_feats)  # number of input features
+
+    print_stats(stats_file, str(args), print_to_console=True)  # save all the args parameters
 
     # #   Parameters of gamma distributions for two stratum
-    # params = get_gamma_params(z_all)
+    print("We start computing the parameters of two gammas")
+    params = get_gamma_parameters(z_all)
+    print_stats(stats_file, str(params), print_to_console=False)
 
-    params = {'phi': 0.47535938, 'a_g': 0.1787963, 'a_v': 3.5681678,
-              'loc_g': 0, 'loc_v': 0, 'scale_g': 0.48213167,
-              'scale_v': 1.46897231}
+    # params = {'phi': 0.47535938, 'a_g': 0.1787963, 'a_v': 3.5681678,
+    #           'loc_g': 0, 'loc_v': 0, 'scale_g': 0.48213167,
+    #           'scale_v': 1.46897231}
 
 
     def train_full(args, fold_id):
@@ -147,14 +149,14 @@ def main():
 
         print('Total number of parameters: {}'.format(sum([p.numel() for p in model.parameters()])))
         print(model)
-        print_stats(stats_file, str(model), print_to_console=False)
 
         # define the classifier
         PCC = PointCloudClassifier(args)
 
         # define the optimizer
         optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.wd)
-        scheduler = StepLR(optimizer, step_size=50, gamma=0.1)
+        scheduler = StepLR(optimizer, step_size=args.step_size, gamma=args.lr_decay)
+
 
         for i_epoch in range(args.n_epoch):
             scheduler.step()
