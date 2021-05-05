@@ -188,7 +188,7 @@ def main():
         trained_model, final_train_losses_list, final_test_losses_list = train_full(args, fold_id)
 
         # save the trained model
-        PATH = os.path(stats_path, "model_ss_" + str(args.subsample_size) + "_dp_" + str(args.diam_pix) + "_fold_" + str(fold_id) + ".pt")
+        PATH = os.path.join(stats_path, "model_ss_" + str(args.subsample_size) + "_dp_" + str(args.diam_pix) + "_fold_" + str(fold_id) + ".pt")
         torch.save(trained_model, PATH)
 
         # We compute stats per fold
