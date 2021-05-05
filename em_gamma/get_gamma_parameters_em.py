@@ -5,17 +5,8 @@ from scipy.special import digamma, polygamma
 import matplotlib
 import matplotlib.pyplot as plt
 matplotlib.use('TkAgg')
-def get_gamma_parameters(all_z):
-    parser = argparse.ArgumentParser(description='Large-scale Point Cloud Semantic Segmentation with Superpoint Graphs')
-    # Optimization arguments
-    parser.add_argument('--ECM_ite_max', default=5, type=int, help='Max number of EVM iteration')
-    parser.add_argument('--NR_ite_max', default=10, type=int, help='Max number of Netwon-Rachson iteration')
-    args = parser.parse_args()
-    # #data loading
-    # all_z = np.load('./zzz.npy') + 1e-2
+def get_gamma_parameters(all_z, args):
     all_z = all_z + 1e-2
-
-    cannot_be_low = all_z>0.5
     #initialization
     shape = np.array([0.2, 1.8])  # scale gamma parameters
     scale = np.array([0.3, 4]) #shape gamma parameters
@@ -33,7 +24,6 @@ def get_gamma_parameters(all_z):
     def E_step():
         expected_values = np.vstack((gamma.pdf(all_z, shape[0], 0, scale[0]),gamma.pdf(all_z, shape[1], 0, scale[1])))
         expected_values = expected_values * pi[:, None]
-        expected_values[0,cannot_be_low] = 0
         return expected_values/expected_values.sum(0)
     def inner_optim(expected_values):
         #find simultaneously the CM values for shape defined as poles obj, with with newton-raphson
@@ -64,7 +54,6 @@ def get_gamma_parameters(all_z):
     def log_likelihood():
         expected_values = np.vstack((gamma.pdf(all_z, shape[0], 0, scale[0]), gamma.pdf(all_z, shape[1], 0, scale[1])))
         expected_values = expected_values * pi[:, None]
-        expected_values[0, cannot_be_low] = 0
         return -np.log(expected_values.sum(0)).mean()
     #---main loop---
     print("Likelihood at init: %2.3f" % (log_likelihood()))
@@ -73,17 +62,7 @@ def get_gamma_parameters(all_z):
         pi, scale = CM1(expected_values)
         shape = CM2(expected_values)
         print("Likelihood at ite %d: %2.3f" % (ite, log_likelihood()))
-    # print(shape)
-    # print(scale)
-    # print(pi)
-    # x = np.linspace(0, 10, 101)[1:]
-    # histo = plt.hist(all_z, bins=100, range=(0, 10), density=True)
-    # bins = histo[1][1:]
-    # pdf =  histo[0]
-    # y1 = pi[0] * gamma.pdf(x, shape[0], 0, scale[0])
-    # y2 = pi[1] * gamma.pdf(x, shape[1], 0, scale[1])
-    # np.savetxt("ECM.csv",  np.vstack((bins, pdf, y1, y2)).transpose(), delimiter=",")
-    # view_distribution()
+
     params = {'phi': pi[0], 'a_g': shape[0], 'a_v': shape[1],
               'loc_g': 0, 'loc_v': 0, 'scale_g': scale[0],
               'scale_v': scale[1]}

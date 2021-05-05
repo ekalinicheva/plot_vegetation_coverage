@@ -5,8 +5,6 @@ from sklearn.neighbors import NearestNeighbors
 import warnings
 warnings.simplefilter(action='ignore')
 
-
-
 def open_las(las_folder):
     # We open las files and create a training dataset
     dataset = {}  # dict to store numpy array with each plot separately
@@ -16,7 +14,7 @@ def open_las(las_folder):
     las_files = os.listdir(las_folder)
     all_points = np.empty((0, 9))
     for las_file in las_files:
-        las = File(las_folder + las_file, mode='r')
+        las = File(os.path.join(las_folder, las_file), mode='r')
         x_las = las.X
         y_las = las.Y
         z_las = las.Z
