@@ -54,12 +54,21 @@ print(CUDA)
 
 Then replace {TORCH} and {CUDA} by the obtained values to install the packages:
 
-pip install torch-scatter     -f https://pytorch-geometric.com/whl/torch-{TORCH}+{CUDA}.html
-pip install torch-sparse      -f https://pytorch-geometric.com/whl/torch-{TORCH}+{CUDA}.html
-pip install torch-cluster     -f https://pytorch-geometric.com/whl/torch-{TORCH}+{CUDA}.html
-pip install torch-spline-conv -f https://pytorch-geometric.com/whl/torch-{TORCH}+{CUDA}.html
-pip install torch-geometric
+
+`pip install torch-scatter     -f https://pytorch-geometric.com/whl/torch-{TORCH}+{CUDA}.html`
+
+`pip install torch-sparse      -f https://pytorch-geometric.com/whl/torch-{TORCH}+{CUDA}.html`
+
+`pip install torch-cluster     -f https://pytorch-geometric.com/whl/torch-{TORCH}+{CUDA}.html`
+
+`pip install torch-spline-conv -f https://pytorch-geometric.com/whl/torch-{TORCH}+{CUDA}.html`
+
+`pip install torch-geometric`
 
 
-Please, use requirements.txt to install other packages.
-conda install -c conda-forge gdal
+Please, use requirements.txt to install other packages by launching `python -m pip install -r requirements.txt`
+
+
+## Code 
+The code is launched from `main.py`.
+It can be launched from IDE, as well as from console with precising the arguments. Please, check the code for different arguments or do `python main.py --help`.
