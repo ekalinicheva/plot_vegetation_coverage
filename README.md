@@ -8,3 +8,6 @@ First, our algorithm compute the pointwise-predictions a point belong to one of 
 - high vegetation
 Then it reprojects each point to the corresponding vegetation stratum by using posterior probabilities.
 Finally, we compute vegetation ratio for each stratum to get final results.
+
+
+![](img/fig1.png)
