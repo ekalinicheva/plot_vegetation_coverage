@@ -10,4 +10,4 @@ Then it reprojects each point to the corresponding vegetation stratum by using p
 Finally, we compute vegetation ratio for each stratum to get final results.
 
 
-![](img/fig1.png)
+![](exemples_images/3_stratum.png)
