@@ -29,7 +29,7 @@ The project requires GDAL library to save the results to a GeoTIFF file. If you 
 
 
 ### Install 
-We suppose that you already have pytorch installed.
+We suppose that you already have pytorch installed. Please, use requirements.txt to install other packages by launching `python -m pip install -r requirements.txt`.
 
 # Install torch_scatter
 Launch this code to check your TORCH and CUDA versions if you don't know them.
@@ -54,7 +54,7 @@ print("CUDA")
 print(CUDA)
 ```
 
-Then replace {TORCH} and {CUDA} by the obtained values to install the packages:
+Then replace {TORCH} and {CUDA} by the obtained values to install the corresponding packages:
 
 
 `pip install torch-scatter     -f https://pytorch-geometric.com/whl/torch-{TORCH}+{CUDA}.html`
@@ -67,8 +67,6 @@ Then replace {TORCH} and {CUDA} by the obtained values to install the packages:
 
 `pip install torch-geometric`
 
-
-Please, use requirements.txt to install other packages by launching `python -m pip install -r requirements.txt`
 
 
 ## Code 
