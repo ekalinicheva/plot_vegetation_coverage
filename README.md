@@ -20,11 +20,13 @@ The notebook can also be directly run on [this google colab](https://colab.resea
 ## Installation
 
 ### Requirements
-The `torch_prototypes` package requires an environment with PyTorch installed (only tested with version 1.7.0).
+The project requires an environment with PyTorch installed (only tested with version 1.7.0).
 Module [torch_scatter](https://github.com/rusty1s/pytorch_scatter) is also required.
-The installation of torch_scatter can be challenging, please, check your cuda version and carefully follow the instructions.
+The installation of torch_scatter can be challenging, please, check your CUDA and PyTorch version and carefully follow the instructions indicated below.
 
-We save the results in GeoTIFF file
+The project requires GDAL library to save the results to a GeoTIFF file. If you have difficulties installing GDAL, just delete `create_tiff()` function from `utils/create_final_images.py`. The result is equally saved to a .png image.
+
+
 
 ### Install 
 We suppose that you already have pytorch installed.
