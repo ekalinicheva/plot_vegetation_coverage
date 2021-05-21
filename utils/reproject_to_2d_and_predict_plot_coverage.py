@@ -56,8 +56,11 @@ def project_to_2d(pred_pointwise, cloud, pred_pointwise_b, PCC, args):
         # c_other = scatter_mean(c_other_pix, index_group)
         pred_pl = torch.stack([c_low_veg, c_bare_soil, c_med_veg]).T
 
+        pred_pixel = torch.stack([c_low_veg_pix, c_med_veg_pix]).T
+
     else:   # 3 stratum
         c_high_veg_pix = pixel_max[3, :]    # we equally compute raster for high vegetation
+
 
         # We compute prediction values per plot
         c_low_veg = scatter_mean(c_low_veg_pix, index_group)
@@ -65,6 +68,7 @@ def project_to_2d(pred_pointwise, cloud, pred_pointwise_b, PCC, args):
         c_med_veg = scatter_mean(c_med_veg_pix, index_group)
         c_high_veg = scatter_mean(c_high_veg_pix, index_group)
         pred_pl = torch.stack([c_low_veg, c_bare_soil, c_med_veg, c_high_veg]).T
+        pred_pixel = torch.stack([c_low_veg_pix, c_med_veg_pix, c_high_veg_pix]).T
 
     if args.adm:
         c_adm_pix = torch.max(pixel_max[[0,2], :], dim=0)[0]
@@ -72,5 +76,5 @@ def project_to_2d(pred_pointwise, cloud, pred_pointwise_b, PCC, args):
     else:
         c_adm = None
 
-    return pred_pl, c_adm
+    return pred_pl, c_adm, pred_pixel
 

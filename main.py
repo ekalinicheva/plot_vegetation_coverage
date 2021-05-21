@@ -7,6 +7,7 @@ import pandas as pd
 import torch.optim as optim
 from torch.optim.lr_scheduler import StepLR
 from sklearn.model_selection import KFold
+import time
 import pickle
 
 # We import from other files
@@ -31,8 +32,12 @@ def main():
     # System Parameters
     parser.add_argument('--path', default="/home/ign.fr/ekalinicheva/DATASET_regression/", type=str,
                         help="Main folder directory")
-    parser.add_argument('--gt_file', default="resultats_placettes_combo.csv", type=str, help="Name of GT *.cvs file")
-    parser.add_argument('--plot_folder_name', default="placettes_combo", type=str, help="Name of GT *.csv file")
+    # parser.add_argument('--gt_file', default="resultats_placettes_combo.csv", type=str, help="Name of GT *.cvs file. Should be put in main path folder.")
+    parser.add_argument('--gt_file', default="resultats_placettes_combo_new.csv", type=str, help="Name of GT *.cvs file. Should be put in main path folder.")
+
+    # parser.add_argument('--plot_folder_name', default="placettes_combo", type=str, help="Name of folder with *.las files. Should be put in main path folder.")
+    parser.add_argument('--plot_folder_name', default="placettes_combo_new", type=str, help="Name of folder with *.las files. Should be put in main path folder.")
+
     parser.add_argument('--cuda', default=1, type=int, help="Whether we use cuda (1) or not (0)")
     parser.add_argument('--folds', default=5, type=int, help="Number of folds for cross validation model training")
 
@@ -48,9 +53,13 @@ def main():
                         help="Loss regularization. The weight of the negative loglikelihood loss in the total loss")
     parser.add_argument('--norm_ground', default=False, type=bool,
                         help="Whether we normalize low vegetation and bare soil values, so LV+BS=1 (True) or we keep unmodified LV value (False) (recommended)")
-    parser.add_argument('--adm', default=True, type=bool, help="Whether we compute admissibility or not")
+    parser.add_argument('--adm', default=False, type=bool, help="Whether we compute admissibility or not")
     parser.add_argument('--nb_stratum', default=3, type=int,
                         help="[2, 3] Number of vegetation stratum that we compute 2 - ground level + medium level; 3 - ground level + medium level + high level")
+    parser.add_argument('--ent', default=True, type=bool, help="Whether we add antropy loss or not")
+    parser.add_argument('--e', default=0.2, type=float,
+                        help="Loss regularization for entropy. The weight of the entropy loss in the total loss")
+
     parser.add_argument('--ECM_ite_max', default=5, type=int, help='Max number of EVM iteration')
     parser.add_argument('--NR_ite_max', default=10, type=int, help='Max number of Netwon-Rachson iteration')
 
@@ -67,12 +76,12 @@ def main():
 
     # Optimization Parameters
     parser.add_argument('--wd', default=0.001, type=float, help="Weight decay for the optimizer")
-    parser.add_argument('--lr', default=5e-4, type=float, help="Learning rate")
+    parser.add_argument('--lr', default=1e-3, type=float, help="Learning rate")
     parser.add_argument('--step_size', default=50, type=int,
                         help="After this number of steps we decrease learning rate. (Period of learning rate decay)")
     parser.add_argument('--lr_decay', default=0.1, type=float,
                         help="We multiply learning rate by this value after certain number of steps (see --step_size). (Multiplicative factor of learning rate decay)")
-    parser.add_argument('--n_epoch', default=100, type=int, help="Number of training epochs")
+    parser.add_argument('--n_epoch', default=50, type=int, help="Number of training epochs")
     parser.add_argument('--n_epoch_test', default=5, type=int, help="We evaluate every -th epoch")
     parser.add_argument('--batch_size', default=20, type=int, help="Size of the training batch")
 
@@ -129,6 +138,7 @@ def main():
         """The full training loop"""
         # initialize the model
         model = PointNet(args.MLP_1, args.MLP_2, args.MLP_3, args)
+        print("model done")
         writer = SummaryWriter(results_path + "runs/"+run_name + "fold_" + str(fold_id) +"/")
 
         print('Total number of parameters: {}'.format(sum([p.numel() for p in model.parameters()])))
@@ -143,7 +153,6 @@ def main():
 
         for i_epoch in range(args.n_epoch):
             scheduler.step()
-
             # train one epoch
             train_losses = train(model, PCC, train_set, params, optimizer, args)
             writer = write_to_writer(writer, args, i_epoch, train_losses, train=True)
@@ -184,7 +193,6 @@ def main():
                                            functools.partial(cloud_loader, dataset=dataset, df_gt=df_gt, train=False, args=args))
         train_set = tnt.dataset.ListDataset(train_list,
                                             functools.partial(cloud_loader, dataset=dataset, df_gt=df_gt, train=True, args=args))
-
         trained_model, final_train_losses_list, final_test_losses_list = train_full(args, fold_id)
 
         # save the trained model

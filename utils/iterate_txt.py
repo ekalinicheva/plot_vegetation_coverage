@@ -3,16 +3,16 @@ import numpy as np
 import pandas as pd
 
 
-df = pd.DataFrame(columns=['pl_id', 'pred_veg_b', 'pred_sol_nu', 'pred_veg_moy', 'vt_veg_b', 'vt_sol_nu', 'vt_veg_moy'])
+df = pd.DataFrame(columns=['pl_id', 'pred_veg_b', 'pred_sol_nu', 'pred_veg_moy', 'pred_veg_h', 'vt_veg_b', 'vt_sol_nu', 'vt_veg_moy', 'vt_veg_h'])
 i=0
-with open('/home/ign.fr/ekalinicheva/DATASET_regression/RESULTS/2021-04-28_182133/stats.txt') as f:
+with open('/home/ign.fr/ekalinicheva/DATASET_regression/RESULTS_3_stratum/only_stratum/2021-05-19_200956/stats.txt') as f:
    for line in f:
         if line.startswith("POINT_") or line.startswith("Releve_"):
             print(line)
-            results = (re.search("([^\s]+) Pred \[(.*?)] GT \[(.*?)]", line))
+            results = (re.search("([^\s]+)  Pred \[(.*?)] GT \[(.*?)]", line))
             pl_id = results.group(1)
             pred_values = np.fromstring(results.group(2), dtype=float, sep=' ')
-            gt_values = np.fromstring(results.group(3), dtype=float, sep=' ')[:3]
+            gt_values = np.fromstring(results.group(3), dtype=float, sep=' ')[:4]
             print(pl_id)
             print(pred_values)
             print(gt_values)

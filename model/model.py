@@ -20,7 +20,6 @@ class PointNet(nn.Module):
         """
 
         super(PointNet, self).__init__()  # necessary for all classes extending the module class
-
         self.is_cuda = args.cuda
         self.subsample_size = args.subsample_size
         self.n_class = args.n_class
@@ -67,9 +66,9 @@ class PointNet(nn.Module):
         self.maxpool = nn.MaxPool1d(self.subsample_size)
         self.softmax = nn.Softmax(dim=1)
         self.sigmoid = nn.Sigmoid()
-
         if self.is_cuda:
             self = self.cuda()
+
 
     def forward(self, input):
         """

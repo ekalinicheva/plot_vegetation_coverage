@@ -23,9 +23,9 @@ def open_las(las_folder):
         b = las.Blue
         nir = las.nir
         intensity = las.intensity
-        nbr_returns = las.return_num
+        return_nb = las.return_num
         points_placette = np.asarray([x_las / 100, y_las / 100, z_las / 100, r, g, b, nir, intensity,
-                                      nbr_returns]).T  # we divide by 100 as all the values in las are in cm
+                                      return_nb]).T  # we divide by 100 as all the values in las are in cm
 
         # There is a file with 2 points 60m above others (maybe birds), we delete these points
         if las_file == "Releve_Lidar_F70.las":
@@ -42,7 +42,7 @@ def open_las(las_folder):
         _, neigh = knn.radius_neighbors(xyz[:, :2], 0.5)
         z = xyz[:, 2]
         zmin_neigh = []
-        for n in range(len(z)):
+        for n in range(len(z)): #challenging to make it work without a loop as neigh has different length for each point
             zmin_neigh.append(np.min(z[neigh[n]]))
         points_placette[:, 2] = points_placette[:, 2] - zmin_neigh
 
