@@ -33,7 +33,7 @@ def visualize_article(image_soil, image_med_veg, image_high_veg, cloud, pl_id, s
 
     # LV stratum raster
     ax2 = fig.add_subplot(gs[0, 2])
-    color_grad = [(0.8, 0.4, 0.1), (0, 1, 0)]  # first color is white, last is green
+    color_grad = [(0.8, 0.4, 0.1), (0, 1, 0)]  # first color is brown, last is green
     cm = colors.LinearSegmentedColormap.from_list(
         "Custom", color_grad, N=100)
     ax2.imshow(image_soil, cmap=cm, vmin=0, vmax=1)
@@ -52,7 +52,8 @@ def visualize_article(image_soil, image_med_veg, image_high_veg, cloud, pl_id, s
 
     # MV stratum raster
     ax3 = fig.add_subplot(gs[1, 2])
-    color_grad = [(1, 1, 1), (0, 1, 0)]  # first color is white, last is green
+    # color_grad = [(1, 1, 1), (0, 1, 0)]  # first color is white, last is green
+    color_grad = [(1, 1, 1), (0, 0, 1)]  # first color is white, last is blue
     cm = colors.LinearSegmentedColormap.from_list(
         "Custom", color_grad, N=100)
     ax3.imshow(image_med_veg, cmap=cm, vmin=0, vmax=1)
@@ -71,7 +72,10 @@ def visualize_article(image_soil, image_med_veg, image_high_veg, cloud, pl_id, s
 
     # Plot high vegetation stratum
     ax4 = fig.add_subplot(gs[2, 2])
-    color_grad = [(1, 1, 1), (0, 1, 0)]  # first color is white, last is red
+    # color_grad = [(1, 1, 1), (0, 1, 0)]  # first color is white, last is green
+    color_grad = [(1, 1, 1), (1, 0, 0)]  # first color is white, last is red
+
+
     cm = colors.LinearSegmentedColormap.from_list(
         "Custom", color_grad, N=100)
     ax4.imshow(image_high_veg, cmap=cm, vmin=0, vmax=1)
