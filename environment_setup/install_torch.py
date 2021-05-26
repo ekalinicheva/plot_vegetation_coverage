@@ -1,3 +1,6 @@
+# This script install torch 1.8.0 as well as compatible 
+# versions of torchnet and torch-scatter.
+
 import os
 os.system("pip install torch==1.8.0+cu111 -f https://download.pytorch.org/whl/torch_stable.html")
 os.system("pip install torchnet")
