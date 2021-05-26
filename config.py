@@ -6,7 +6,7 @@ import os
 MODE = "DEV"  # DEV or PROD
 
 
-parser = ArgumentParser(description="model")
+parser = ArgumentParser(description="model")  # Byte-compiled / optimized / DLL files
 
 # Ignore formating for this block of code
 # fmt: off
