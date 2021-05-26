@@ -1,5 +1,6 @@
 import warnings
-warnings.simplefilter(action='ignore')
+
+warnings.simplefilter(action="ignore")
 
 
 import torchnet as tnt
@@ -14,13 +15,19 @@ from model.loss_functions import *
 
 np.random.seed(42)
 
+
 def train(model, PCC, train_set, params, optimizer, args):
     """train for one epoch"""
     model.train()
 
     # the loader function will take care of the batching
-    loader = torch.utils.data.DataLoader(train_set, collate_fn=cloud_collate, \
-                                         batch_size=args.batch_size, shuffle=True, drop_last=True)
+    loader = torch.utils.data.DataLoader(
+        train_set,
+        collate_fn=cloud_collate,
+        batch_size=args.batch_size,
+        shuffle=True,
+        drop_last=True,
+    )
 
     # will keep track of the loss
     loss_meter = tnt.meter.AverageValueMeter()
@@ -34,13 +41,18 @@ def train(model, PCC, train_set, params, optimizer, args):
             gt = gt.cuda()
 
         optimizer.zero_grad()  # put gradient to zero
-        pred_pointwise, pred_pointwise_b = PCC.run(model, cloud)  # compute the pointwise prediction
-        pred_pl, pred_adm, pred_pixels = project_to_2d(pred_pointwise, cloud, pred_pointwise_b, PCC, args)  # compute plot prediction
+        pred_pointwise, pred_pointwise_b = PCC.run(
+            model, cloud
+        )  # compute the pointwise prediction
+        pred_pl, pred_adm, pred_pixels = project_to_2d(
+            pred_pointwise, cloud, pred_pointwise_b, PCC, args
+        )  # compute plot prediction
 
         # we compute two losses (negative loglikelihood and the absolute error loss for 2 or 3 stratum)
         loss_abs = loss_absolute(pred_pl, gt, args)
-        loss_log, likelihood = loss_loglikelihood(pred_pointwise, cloud, params, PCC,
-                                                  args)  # negative loglikelihood loss
+        loss_log, likelihood = loss_loglikelihood(
+            pred_pointwise, cloud, params, PCC, args
+        )  # negative loglikelihood loss
         if args.ent:
             loss_e = loss_entropy(pred_pixels)
 
@@ -66,4 +78,9 @@ def train(model, PCC, train_set, params, optimizer, args):
         loss_meter.add(loss.item())
         gc.collect()
 
-    return loss_meter.value()[0], loss_meter_abs.value()[0], loss_meter_log.value()[0], loss_meter_abs_adm.value()[0]
+    return (
+        loss_meter.value()[0],
+        loss_meter_abs.value()[0],
+        loss_meter_log.value()[0],
+        loss_meter_abs_adm.value()[0],
+    )

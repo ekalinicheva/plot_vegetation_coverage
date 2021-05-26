@@ -2,3 +2,5 @@
 /data/
 /experiments/
 /notebooks/
+/.vscode/
+__pycache__/

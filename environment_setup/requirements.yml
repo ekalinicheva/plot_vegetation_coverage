@@ -12,8 +12,9 @@ dependencies:
   - ipython
   - jupyter
   - pip
+  - black
   - pip:
-    - laspy
-    - torchnet
-    - osgeo
+      - laspy
+      - torchnet
+      - osgeo
 #    - gdal==2.3.3  # GDAL should be installed
