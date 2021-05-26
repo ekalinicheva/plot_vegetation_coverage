@@ -72,13 +72,19 @@ def open_las(las_folder):
     return all_points, dataset, mean_dataset
 
 
-def open_metadata_dataframe(args):
+def open_metadata_dataframe(args, pl_id_to_keep):
     """This opens the ground truth file. It completes if necessary admissibility value using ASP method."""
 
-    df_gt = pd.read_csv(args.gt_file_path, sep=",", header=0)  # we open GT file
-
+    df_gt = pd.read_csv(
+        args.gt_file_path,
+        sep=",",
+        header=0,
+    )  # we open GT file
     # Here, adapt columns names
     df_gt = df_gt.rename(args.coln_mapper_dict, axis=1)
+
+    # Keep metadata for placettes we are considering
+    df_gt = df_gt[df_gt["Name"].isin(pl_id_to_keep)]
 
     # TODO : this is ADM based on ASP definition
     if "ADM" not in df_gt:
