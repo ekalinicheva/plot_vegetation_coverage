@@ -1,0 +1,19 @@
+name: lidar_pac
+channels:
+  - defaults
+  - anaconda
+  - conda-forge
+dependencies:
+  - numpy
+  - pandas
+  - scipy
+  - scikit-learn
+  - matplotlib
+  - ipython
+  - jupyter
+  - pip
+  - pip:
+    - laspy
+    - torchnet
+    - osgeo
+#    - gdal==2.3.3
