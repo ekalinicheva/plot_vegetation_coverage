@@ -12,15 +12,17 @@ parser = ArgumentParser(description="model")  # Byte-compiled / optimized / DLL 
 # fmt: off
 
 repo_absolute_path = os.path.dirname(os.path.abspath(__file__))
-print(repo_absolute_path)
+dataset_folder_path = os.path.join(repo_absolute_path, "data/placettes_dataset_20210526/")
+
+print(f"Dataset folder in use: {dataset_folder_path}")
 
 # System Parameters
 parser.add_argument('--path', default=repo_absolute_path, type=str, help="Repo absolute path directory")
-parser.add_argument('--dataset_folder_path', default=os.path.join(repo_absolute_path, "/data/placettes_dataset_20210526"), type=str, help="Name of folder with decompressed files. Put in repo root.")
-
-parser.add_argument('--gt_filename', default="./placettes_metadata.csv", type=str, help="Name of ground truth file. Put in LAS folder i.e. in 'dataset'.")
+parser.add_argument('--dataset_folder_path', default=dataset_folder_path, type=str, help="Name of folder with decompressed files. Put in repo root.")
+parser.add_argument('--gt_file_path', default=os.path.join(dataset_folder_path, "placettes_metadata.csv"), type=str, help="Name of ground truth file. Put in LAS folder i.e. in 'dataset'.")
 parser.add_argument('--cuda', default=0, type=int, help="Whether we use cuda (1) or not (0)")
 parser.add_argument('--folds', default=5, type=int, help="Number of folds for cross validation model training")
+parser.add_argument('--coln_mapper_dict', default={"nom":"Name"}, type=str, help="Dict to rename columns of gt csv.")
 
 # Model Parameters
 parser.add_argument('--n_class', default=4, type=int,
