@@ -54,6 +54,5 @@ def create_new_experiment_folder(args):
 
     # add to args
     args.results_path = results_path
+    args.stats_path = stats_path
     args.stats_file = stats_file
-
-    return results_path, stats_file
