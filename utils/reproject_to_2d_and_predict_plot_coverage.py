@@ -78,7 +78,7 @@ def project_to_2d(pred_pointwise, cloud, pred_pointwise_b, PCC, args):
         pred_pixel = torch.stack([c_low_veg_pix, c_med_veg_pix, c_high_veg_pix]).T
 
     if args.adm:
-        # If we fit do consider admissibility, it is with the purpose of getting admissibility rasters (c_adm_pix)
+        # If we do consider admissibility, it is with the purpose of getting admissibility rasters (c_adm_pix)
         c_adm_pix = torch.max(pixel_max[[0, 2], :], dim=0)[0]
         c_adm = scatter_mean(c_adm_pix, index_group)
         return pred_pl, c_adm, c_adm_pix

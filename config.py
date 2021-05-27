@@ -3,28 +3,29 @@ import os
 
 # This script defines all parameters for data loading, model definition, sand I/O operations.
 
-MODE = "DEV"  # DEV or PROD
+MODE = "PROD"  # DEV or PROD
 
 
 parser = ArgumentParser(description="model")  # Byte-compiled / optimized / DLL files
 
-# Ignore formating for this block of code
+# Ignore formating for this block of code with:
 # fmt: off
 
 repo_absolute_path = os.path.dirname(os.path.abspath(__file__))
-dataset_folder_path = os.path.join(repo_absolute_path, "data/placettes_dataset_20210526_origin/")
+dataset_folder_path = os.path.join(repo_absolute_path, "data/placettes_dataset_20210526/")
 
 print(f"Dataset folder in use: {dataset_folder_path}")
 
 # System Parameters
 parser.add_argument('--mode', default=MODE, type=str, help="DEV or PROD mode - DEV is a quick debug mode")
 parser.add_argument('--path', default=repo_absolute_path, type=str, help="Repo absolute path directory")
-parser.add_argument('--dataset_folder_path', default=dataset_folder_path, type=str, help="Name of folder with decompressed files. Put in repo root.")
-parser.add_argument('--gt_file_path', default=os.path.join(dataset_folder_path, "placettes_metadata.csv"), type=str, help="Name of ground truth file. Put in LAS folder i.e. in 'dataset'.")
+parser.add_argument('--dataset_folder_path', default=dataset_folder_path, type=str, help="Path to folder with decompressed dataset. Put in repo root.")
+parser.add_argument('--las_files_folder_path', default=os.path.join(dataset_folder_path, "las_classes/"), type=str, help="Path to folder with las files.")
+parser.add_argument('--gt_file_path', default=os.path.join(dataset_folder_path, "placettes_metadata.csv"), type=str, help="Path to ground truth file. Put in dataset folder.")
 parser.add_argument('--cuda', default=0, type=int, help="Whether we use cuda (1) or not (0)")
 parser.add_argument('--folds', default=5, type=int, help="Number of folds for cross validation model training")
 parser.add_argument('--coln_mapper_dict', default={"nom":"Name"}, type=str, help="Dict to rename columns of gt ")
-parser.add_argument('--create_final_images_bool', default=False, type=bool, help="Set to True to output") # TODO: waiting for osgeo to be accessible!
+parser.add_argument('--create_final_images_bool', default=True, type=bool, help="Set to True to output") # TODO: waiting for osgeo to be accessible!
 
 parser.add_argument('--results_path', default=None, help="(Created on the fly) Path to all related experiments")
 parser.add_argument('--stats_path', default=None, help="(Created on the fly) Path to stats folder of current run")
@@ -70,7 +71,7 @@ parser.add_argument('--step_size', default=50, type=int,
                     help="After this number of steps we decrease learning rate. (Period of learning rate decay)")
 parser.add_argument('--lr_decay', default=0.1, type=float,
                     help="We multiply learning rate by this value after certain number of steps (see --step_size). (Multiplicative factor of learning rate decay)")
-parser.add_argument('--n_epoch', default=50 if MODE=="PROD" else 2, type=int, help="Number of training epochs")
+parser.add_argument('--n_epoch', default=75 if MODE=="PROD" else 2, type=int, help="Number of training epochs")
 parser.add_argument('--n_epoch_test', default=5 if MODE=="PROD" else 1, type=int, help="We evaluate every -th epoch")
 parser.add_argument('--batch_size', default=20, type=int, help="Size of the training batch")
 

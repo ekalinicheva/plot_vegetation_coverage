@@ -27,19 +27,14 @@ def create_new_experiment_folder(args):
     las_folder = args.dataset_folder_path  # folder with las files
 
     # We write results to different folders depending on the chosen parameters
-    if args.nb_stratum == 2:
-        results_path = stats_path = os.path.join(
-            args.path, "experiments/RESULTS_2_strata/"
-        )
-    else:
-        results_path = stats_path = os.path.join(
-            args.path, "experiments/RESULTS_3_strata/"
-        )
+    results_path = os.path.join(
+        args.path, f"experiments/RESULTS_{2 if args.nb_stratum == 2 else 3}_strata/"
+    )
 
     if args.adm:
-        results_path = os.path.join(results_path, "admissibility/")
+        results_path = os.path.join(results_path, f"admissibility/{args.mode}/")
     else:
-        results_path = os.path.join(results_path, "only_stratum/")
+        results_path = os.path.join(results_path, f"only_stratum/{args.mode}/")
 
     # We keep track of time and stats
     start_time = time.time()

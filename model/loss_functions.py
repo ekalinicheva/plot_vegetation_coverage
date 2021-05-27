@@ -115,7 +115,7 @@ def loss_absolute(pred_pl, gt, args, level_loss=False):
 
 
 def loss_entropy(pred_pixels):
-    """Loss entropy on admissibility probabilities to favor adm values close to 0 or 1"""
+    """Loss entropy on coverage raster (probabilities) to favor adm values close to 0 or 1"""
     return -(
         pred_pixels * torch.log(pred_pixels + EPS)
         + (1 - pred_pixels) * torch.log(1 - pred_pixels + EPS)

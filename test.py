@@ -1,5 +1,5 @@
 # We import from other files
-# from utils.create_final_images import *  # TODO: wait for osgeo accessible
+from utils.create_final_images import *
 from data_loader.loader import *
 from utils.reproject_to_2d_and_predict_plot_coverage import *
 from model.loss_functions import *

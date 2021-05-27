@@ -1,10 +1,9 @@
 name: lidar_pac
 channels:
-  - conda-forge
   - defaults
   - anaconda
+  - conda-forge
 dependencies:
-  - gdal
   - numpy
   - pandas
   - scipy
@@ -13,8 +12,8 @@ dependencies:
   - ipython
   - jupyter
   - pip
-  - black
   - pip:
-      - laspy
-      - torchnet
-      - osgeo
+    - laspy
+    - torchnet
+    - osgeo
+

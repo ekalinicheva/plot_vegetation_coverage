@@ -68,7 +68,7 @@ def main():
     create_new_experiment_folder(args)  # new paths are added to args
 
     # Load Las files for placettes
-    all_points, dataset, mean_dataset = open_las(args.dataset_folder_path)
+    all_points, dataset, mean_dataset = open_las(args.las_files_folder_path)
     print("Our dataset contains " + str(len(dataset)) + " plots.")
 
     # Load ground truth csv file
