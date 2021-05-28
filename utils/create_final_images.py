@@ -341,9 +341,15 @@ def create_final_images(
                 img_to_write = np.concatenate(
                     ([image_ground], [image_med_veg], [image_high_veg]), 0
                 )
-            # TODO : uncomment to create GeoTIFF files
-            # create_tiff(nb_channels=args.nb_stratum, new_tiff_name=stats_path + plot_name + ".tif", width=args.diam_pix,
-            #             height=args.diam_pix, datatype=gdal.GDT_Float32, data_array=img_to_write, geotransformation=geo)
+            create_tiff(
+                nb_channels=args.nb_stratum,
+                new_tiff_name=stats_path + plot_name + ".tif",
+                width=args.diam_pix,
+                height=args.diam_pix,
+                datatype=gdal.GDT_Float32,
+                data_array=img_to_write,
+                geotransformation=geo,
+            )
         if args.adm:
             text = (
                 "Pred "
