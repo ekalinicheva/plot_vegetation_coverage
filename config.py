@@ -3,17 +3,17 @@ import os
 
 # This script defines all parameters for data loading, model definition, sand I/O operations.
 
+# Set to DEV for faster iterations (1 fold, 4 epochs), in order to e.g. test saving results.
 MODE = "PROD"  # DEV or PROD
 
 
 parser = ArgumentParser(description="model")  # Byte-compiled / optimized / DLL files
 
-# Ignore formating for this block of code with:
+# ignore blac auto-formating
 # fmt: off
 
 repo_absolute_path = os.path.dirname(os.path.abspath(__file__))
 dataset_folder_path = os.path.join(repo_absolute_path, "data/placettes_dataset_20210526/")
-
 print(f"Dataset folder in use: {dataset_folder_path}")
 
 # System Parameters
@@ -63,7 +63,7 @@ parser.add_argument('--MLP_3', default=[64, 32], type=list,
 parser.add_argument('--drop', default=0.4, type=float, help="Probability value of the DropOut layer of the model")
 parser.add_argument('--soft', default=True, type=bool,
                     help="Whether we use softmax layer for the model output (True) of sigmoid (False)")
-
+ 
 # Optimization Parameters
 parser.add_argument('--wd', default=0.001, type=float, help="Weight decay for the optimizer")
 parser.add_argument('--lr', default=1e-3, type=float, help="Learning rate")

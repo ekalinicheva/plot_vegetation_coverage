@@ -24,7 +24,9 @@ def eval(
     create_final_images_bool=True,
 ):
     """Eval on test set and inference if this is the last epoch
-    Outputs are: average losses (printed), infered values (csv) , k trained models, stats, and images"""
+    Outputs are: average losses (printed), infered values (csv) , k trained models, stats, and images.
+    Everything is saved under /experiments/ folder.
+    """
 
     model.eval()
 

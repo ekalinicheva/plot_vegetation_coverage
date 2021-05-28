@@ -28,7 +28,9 @@ def project_to_2d(pred_pointwise, cloud, pred_pointwise_b, PCC, args):
         ).int()
 
         unique, index = torch.unique(xy.T, dim=0, return_inverse=True)
-        index_b = torch.full(torch.unique(index).size(), b)
+        index_b = torch.full(
+            torch.unique(index).size(), b
+        )  # b is index of cloud in the batch
         if PCC.is_cuda:
             index = index.cuda()
             index_b = index_b.cuda()
