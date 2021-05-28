@@ -19,7 +19,9 @@ class PointNet(nn.Module):
 
         """
 
-        super(PointNet, self).__init__()  # necessary for all classes extending the module class
+        super(
+            PointNet, self
+        ).__init__()  # necessary for all classes extending the module class
         self.is_cuda = args.cuda
         self.subsample_size = args.subsample_size
         self.n_class = args.n_class
@@ -37,7 +39,12 @@ class PointNet(nn.Module):
         for i in range(len(MLP_1)):  # loop over the layer of MLP1
             # note: for the first layer, the first in_channels is feature_size
             modules.append(
-                nn.Conv1d(in_channels=MLP_1[i - 1] if i > 0 else self.input_feat, out_channels=MLP_1[i], kernel_size=1))
+                nn.Conv1d(
+                    in_channels=MLP_1[i - 1] if i > 0 else self.input_feat,
+                    out_channels=MLP_1[i],
+                    kernel_size=1,
+                )
+            )
             modules.append(nn.BatchNorm1d(MLP_1[i]))
             modules.append(nn.ReLU(True))
         # this transform the list of layers into a callable module
@@ -46,7 +53,13 @@ class PointNet(nn.Module):
         # build MLP_2: f1 [m1 x n] -> f2 [m2 x n]
         modules = []
         for i in range(len(MLP_2)):
-            modules.append(nn.Conv1d(in_channels=MLP_2[i - 1] if i > 0 else m1, out_channels=MLP_2[i], kernel_size=1))
+            modules.append(
+                nn.Conv1d(
+                    in_channels=MLP_2[i - 1] if i > 0 else m1,
+                    out_channels=MLP_2[i],
+                    kernel_size=1,
+                )
+            )
             modules.append(nn.BatchNorm1d(MLP_2[i]))
             modules.append(nn.ReLU(True))
         self.MLP_2 = nn.Sequential(*modules)
@@ -55,7 +68,12 @@ class PointNet(nn.Module):
         modules = []
         for i in range(len(MLP_3)):
             modules.append(
-                nn.Conv1d(in_channels=MLP_3[i - 1] if i > 0 else (m1 + m2), out_channels=MLP_3[i], kernel_size=1))
+                nn.Conv1d(
+                    in_channels=MLP_3[i - 1] if i > 0 else (m1 + m2),
+                    out_channels=MLP_3[i],
+                    kernel_size=1,
+                )
+            )
             modules.append(nn.BatchNorm1d(MLP_3[i]))
             modules.append(nn.ReLU(True))
         # note: the last layer do not have normalization nor activation
@@ -68,7 +86,6 @@ class PointNet(nn.Module):
         self.sigmoid = nn.Sigmoid()
         if self.is_cuda:
             self = self.cuda()
-
 
     def forward(self, input):
         """
