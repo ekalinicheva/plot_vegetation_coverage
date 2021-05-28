@@ -101,6 +101,8 @@ def visualize_article(
     plt.savefig(
         stats_path + pl_id + "_article.svg", format="svg", bbox_inches="tight", dpi=300
     )
+    plt.clf()
+    plt.close("all")
 
 
 def visualize(
@@ -250,6 +252,8 @@ def visualize(
     if txt is not None:
         fig.text(0.5, 0.05, txt, ha="center")
     plt.savefig(stats_path + pl_id + ".png", format="png", bbox_inches="tight", dpi=300)
+    plt.clf()
+    plt.close("all")
 
 
 def create_final_images(
@@ -267,7 +271,8 @@ def create_final_images(
     adm=None,
 ):
     """
-    We do final data reprojection to the 2D space (2 stratum - ground vegetation level and medium level, optionally high level) by associating the points to the pixels.
+    We do final data reprojection to the 2D space (2 stratum - ground vegetation level and medium level, optionally high level)
+    by associating the points to the pixels.
     Then we create the images with those stratum
     """
     for b in range(len(pred_pointwise_b)):
