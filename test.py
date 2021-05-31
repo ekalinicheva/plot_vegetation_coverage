@@ -3,9 +3,11 @@ from utils.create_final_images import *
 from data_loader.loader import *
 from utils.reproject_to_2d_and_predict_plot_coverage import *
 from model.loss_functions import *
+from utils.useful_functions import create_dir
 import torchnet as tnt
 import time
 import gc
+import os
 
 np.random.seed(42)
 
@@ -107,6 +109,9 @@ def eval(
             loss_meter_abs_ml.add(loss_abs_ml.item())
 
             # create final plot to visualize results
+            plot_path = os.path.join(stats_path, "img/")
+            create_dir(plot_path)
+
             if create_final_images_bool:
                 create_final_images(
                     pred_pl,
@@ -116,7 +121,7 @@ def eval(
                     likelihood,
                     pl_id,
                     mean_dataset,
-                    stats_path,
+                    plot_path,
                     stats_file,
                     args,
                     adm=pred_adm,

@@ -180,9 +180,13 @@ def main():
     df_inference["error_veg_b"] = (
         df_inference["pred_veg_b"] - df_inference["vt_veg_b"]
     ).abs()
-    df_inference["error_veg_b"] = (
+    df_inference["error_veg_moy"] = (
         df_inference["pred_veg_moy"] - df_inference["vt_veg_moy"]
     ).abs()
+    df_inference.to_csv(inference_path, index=False)  # TODO: remove just in case
+    df_inference["error_veg_b_and_moy"] = (
+        df_inference["error_veg_b"] + df_inference["error_veg_moy"]
+    ) / 2
     df_inference.to_csv(inference_path, index=False)
 
 

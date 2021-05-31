@@ -13,7 +13,7 @@ parser = ArgumentParser(description="model")  # Byte-compiled / optimized / DLL 
 # fmt: off
 
 repo_absolute_path = os.path.dirname(os.path.abspath(__file__))
-dataset_folder_path = os.path.join(repo_absolute_path, "data/placettes_dataset_20210526/")
+dataset_folder_path = os.path.join(repo_absolute_path, "data/placettes_dataset/")
 print(f"Dataset folder in use: {dataset_folder_path}")
 
 # System Parameters
