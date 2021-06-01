@@ -3,7 +3,6 @@ import warnings
 warnings.simplefilter(action="ignore")
 
 import functools
-import argparse
 import numpy as np
 import pandas as pd
 
@@ -18,9 +17,6 @@ from torch.optim.lr_scheduler import StepLR
 import torchnet as tnt
 from sklearn.neighbors import NearestNeighbors
 
-import gc
-
-# from osgeo import gdal, osr  # TODO: UNCOMMENT
 import torch.nn as nn
 from scipy.special import digamma, polygamma
 
@@ -35,7 +31,6 @@ for i in range(2):
 import matplotlib.pyplot as plt
 
 
-import pickle
 from torch_scatter import scatter_max, scatter_mean
 
 print(torch.cuda.is_available())
@@ -51,8 +46,7 @@ from utils.open_las import load_all_las_from_folder, open_metadata_dataframe
 from model.loss_functions import *
 from model.accuracy import *
 from em_gamma.get_gamma_parameters_em import *
-from train import train, train_full
-from test import eval
+from train import train_full
 
 print("Everything is imported")
 

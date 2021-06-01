@@ -12,7 +12,7 @@ import os
 np.random.seed(42)
 
 
-def eval(
+def evaluate(
     model,
     PCC,
     test_set,
