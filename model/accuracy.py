@@ -332,7 +332,7 @@ def write_to_writer(writer, args, i_epoch, list_with_losses, train):
                 % (i_epoch, loss_train, loss_train_abs, loss_train_log, loss_train_adm)
                 + NORMALCOLOR
             )
-            writer.add_scalar("Loss/train_abs_adm", loss_train_adm, i_epoch + 1)
+            writer.add_scalar("Loss/train/abs_adm", loss_train_adm, i_epoch + 1)
         else:
             print(
                 TRAINCOLOR
@@ -340,8 +340,8 @@ def write_to_writer(writer, args, i_epoch, list_with_losses, train):
                 % (i_epoch, loss_train, loss_train_abs, loss_train_log)
                 + NORMALCOLOR
             )
-        writer.add_scalar("Loss/train", loss_train, i_epoch + 1)
-        writer.add_scalar("Loss/train_abs", loss_train_abs, i_epoch + 1)
+        writer.add_scalar("Loss/train_total", loss_train, i_epoch + 1)
+        writer.add_scalar("Coverage_MAE/train", loss_train_abs, i_epoch + 1)
         writer.add_scalar("Loss/train_log", loss_train_log, i_epoch + 1)
 
     else:
@@ -361,7 +361,7 @@ def write_to_writer(writer, args, i_epoch, list_with_losses, train):
                 % (loss_test, loss_test_abs, loss_test_log, loss_test_adm)
                 + NORMALCOLOR
             )
-            writer.add_scalar("Loss/test_abs_adm", loss_test_adm, i_epoch + 1)
+            writer.add_scalar("Loss/test/abs_adm", loss_test_adm, i_epoch + 1)
         else:
             print(
                 TESTCOLOR
@@ -369,7 +369,7 @@ def write_to_writer(writer, args, i_epoch, list_with_losses, train):
                 % (loss_test, loss_test_abs, loss_test_log)
                 + NORMALCOLOR
             )
-        writer.add_scalar("Loss/test", loss_test, i_epoch + 1)
-        writer.add_scalar("Loss/test_abs", loss_test_abs, i_epoch + 1)
-        writer.add_scalar("Loss/test_log", loss_test_log, i_epoch + 1)
+        writer.add_scalar("Loss/test/total", loss_test, i_epoch + 1)
+        writer.add_scalar("Coverage_MAE/test", loss_test_abs, i_epoch + 1)
+        writer.add_scalar("Loss/test/log", loss_test_log, i_epoch + 1)
     return writer
