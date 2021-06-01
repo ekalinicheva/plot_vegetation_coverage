@@ -24,7 +24,6 @@ def create_dir(dir_name):
 
 
 def create_new_experiment_folder(args):
-    las_folder = args.dataset_folder_path  # folder with las files
 
     # We write results to different folders depending on the chosen parameters
     results_path = os.path.join(

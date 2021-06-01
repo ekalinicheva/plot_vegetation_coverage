@@ -13,15 +13,16 @@ parser = ArgumentParser(description="model")  # Byte-compiled / optimized / DLL 
 # fmt: off
 
 repo_absolute_path = os.path.dirname(os.path.abspath(__file__))
-dataset_folder_path = os.path.join(repo_absolute_path, "data/placettes_dataset/")
-print(f"Dataset folder in use: {dataset_folder_path}")
+data_path = os.path.join(repo_absolute_path, "data/")
+print(f"Dataset folder in use: {data_path}")
 
 # System Parameters
 parser.add_argument('--mode', default=MODE, type=str, help="DEV or PROD mode - DEV is a quick debug mode")
 parser.add_argument('--path', default=repo_absolute_path, type=str, help="Repo absolute path directory")
-parser.add_argument('--dataset_folder_path', default=dataset_folder_path, type=str, help="Path to folder with decompressed dataset. Put in repo root.")
-parser.add_argument('--las_files_folder_path', default=os.path.join(dataset_folder_path, "las_classes/"), type=str, help="Path to folder with las files.")
-parser.add_argument('--gt_file_path', default=os.path.join(dataset_folder_path, "placettes_metadata.csv"), type=str, help="Path to ground truth file. Put in dataset folder.")
+parser.add_argument('--data_path', default=data_path, type=str, help="Path to /repo_root/data/ folder.")
+parser.add_argument('--las_placettes_folder_path', default=os.path.join(data_path, "placettes_dataset/las_classes/"), type=str, help="Path to folder with placettes las files.")
+parser.add_argument('--las_parcelles_folder_path', default=os.path.join(data_path, "parcelles_dataset_test/"), type=str, help="Path to folder with parcelles las files.")
+parser.add_argument('--gt_file_path', default=os.path.join(data_path, "placettes_dataset/placettes_metadata.csv"), type=str, help="Path to ground truth file. Put in dataset folder.")
 parser.add_argument('--cuda', default=0, type=int, help="Whether we use cuda (1) or not (0)")
 parser.add_argument('--folds', default=5, type=int, help="Number of folds for cross validation model training")
 parser.add_argument('--coln_mapper_dict', default={"nom":"Name"}, type=str, help="Dict to rename columns of gt ")
