@@ -7,18 +7,12 @@ import numpy as np
 import pandas as pd
 
 from sklearn.model_selection import KFold
-from torch.utils.tensorboard import SummaryWriter
-from scipy.stats import gamma
 import os
 import time
 import torch
-import torch.optim as optim
-from torch.optim.lr_scheduler import StepLR
 import torchnet as tnt
-from sklearn.neighbors import NearestNeighbors
 
 import torch.nn as nn
-from scipy.special import digamma, polygamma
 
 import matplotlib
 
@@ -28,10 +22,6 @@ for i in range(2):
         matplotlib.use("TkAgg")  # rerun this cell if an error occurs.
     except:
         print("!")
-import matplotlib.pyplot as plt
-
-
-from torch_scatter import scatter_max, scatter_mean
 
 print(torch.cuda.is_available())
 np.random.seed(42)
@@ -39,14 +29,13 @@ torch.cuda.empty_cache()
 
 # We import from other files
 from config import args
-from model.model import PointNet
 from utils.useful_functions import *
 from data_loader.loader import *
 from utils.load_las_data import load_all_las_from_folder, open_metadata_dataframe
 from model.loss_functions import *
 from model.accuracy import *
 from em_gamma.get_gamma_parameters_em import *
-from train import train_full
+from model.train import train_full
 
 print("Everything is imported")
 
