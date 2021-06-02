@@ -1,7 +1,6 @@
 /garbage/
 /data/
 /experiments/
-/notebooks/
 /.vscode/
 __pycache__/
 parcelles_splitting_dev_notebook.ipynb
