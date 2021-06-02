@@ -53,7 +53,6 @@ def cloud_loader(plot_id, dataset, df_gt, train, args):
         ].values
         / 100
     )
-    # gt = np.asarray([np.append(gt, [1 - gt[:, 2]])])
 
     xmean, ymean = np.mean(cloud_data[0:2], axis=1)
 
