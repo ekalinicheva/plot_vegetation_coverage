@@ -42,7 +42,7 @@ from config import args
 from model.model import PointNet
 from utils.useful_functions import *
 from data_loader.loader import *
-from utils.open_las import load_all_las_from_folder, open_metadata_dataframe
+from utils.load_las_data import load_all_las_from_folder, open_metadata_dataframe
 from model.loss_functions import *
 from model.accuracy import *
 from em_gamma.get_gamma_parameters_em import *

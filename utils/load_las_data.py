@@ -25,14 +25,11 @@ def load_all_las_from_folder(las_folder):
             continue
 
         # Parse LAS files
-        points_placette, x_las, y_las = load_single_las(las_folder, las_file)
+        points_nparray, xy_averages = load_single_las(las_folder, las_file)
 
-        all_points_nparray = np.append(all_points_nparray, points_placette, axis=0)
-        nparray_clouds_dict[os.path.splitext(las_file)[0]] = points_placette
-        xy_averages_dict[os.path.splitext(las_file)[0]] = [
-            np.mean(x_las) / 100,
-            np.mean(y_las) / 100,
-        ]
+        all_points_nparray = np.append(all_points_nparray, points_nparray, axis=0)
+        nparray_clouds_dict[os.path.splitext(las_file)[0]] = points_nparray
+        xy_averages_dict[os.path.splitext(las_file)[0]] = xy_averages
 
     return all_points_nparray, nparray_clouds_dict, xy_averages_dict
 
@@ -73,7 +70,11 @@ def load_single_las(las_folder, las_file):
     ):  # challenging to make it work without a loop as neigh has different length for each point
         zmin_neigh.append(np.min(z[neigh[n]]))
     points_placette[:, 2] = points_placette[:, 2] - zmin_neigh
-    return points_placette, x_las, y_las
+    xy_averages = [
+        np.mean(x_las) / 100,
+        np.mean(y_las) / 100,
+    ]
+    return points_placette, xy_averages
 
 
 def open_metadata_dataframe(args, pl_id_to_keep):
