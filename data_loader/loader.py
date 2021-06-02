@@ -54,10 +54,26 @@ def cloud_loader(plot_id, dataset, df_gt, train, args):
         / 100
     )
 
-    xmean, ymean = np.mean(cloud_data[0:2], axis=1)
+    cloud_data = normalize_cloud_data(cloud_data, args)
 
+    if train:
+        cloud_data = augment(cloud_data)
+
+    cloud_data = torch.from_numpy(cloud_data)
+    gt = torch.from_numpy(gt).float()
+    return cloud_data, gt
+
+
+def cloud_loader_from_parcel(parcel_points_nparray, disk_center):
+
+    pass
+
+
+def normalize_cloud_data(cloud_data, args):
     # normalizing data
     # Z data was already partially normalized during loading
+    xmean, ymean = np.mean(cloud_data[0:2], axis=1)
+
     cloud_data[0] = (cloud_data[0] - xmean) / 10  # x
     cloud_data[1] = (cloud_data[1] - ymean) / 10  # y
     cloud_data[2] = (cloud_data[2]) / args.z_max  # z
@@ -67,13 +83,7 @@ def cloud_loader(plot_id, dataset, df_gt, train, args):
     int_max = 32768
     cloud_data[7] = cloud_data[7] / int_max
     cloud_data[8] = (cloud_data[8] - 1) / (7 - 1)
-
-    if train:
-        cloud_data = augment(cloud_data)
-
-    cloud_data = torch.from_numpy(cloud_data)
-    gt = torch.from_numpy(gt).float()
-    return cloud_data, gt
+    return cloud_data
 
 
 def cloud_collate(batch):
