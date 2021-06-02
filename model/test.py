@@ -109,7 +109,7 @@ def evaluate(
             loss_meter_abs_ml.add(loss_abs_ml.item())
 
             # create final plot to visualize results
-            plot_path = os.path.join(stats_path, "img/")
+            plot_path = os.path.join(stats_path, "img/placettes/")
             create_dir(plot_path)
 
             if create_final_images_bool:
