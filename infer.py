@@ -113,7 +113,7 @@ for las_filename in las_filenames:
                 contained_points_tensor,
                 plot_center,
                 las_id,
-                add_weights_band=False,
+                add_weights_band=True,
             )
             idx_for_break += 1
             if idx_for_break > 10:

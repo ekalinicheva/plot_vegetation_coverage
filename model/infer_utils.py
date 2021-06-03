@@ -265,9 +265,25 @@ def create_geotiff_raster(
         image_med_veg,
         image_high_veg,
     )
+
+    # we get hard rasters for medium veg, creating a fourth canal
+    image_med_veg_hard = image_med_veg > 0.5  # TODO: define a bette strategy
+    img_to_write = np.concatenate(
+        [img_to_write, [image_med_veg_hard]], 0
+    )  # (nb_canals, 32, 32)
+
     if add_weights_band:
-        # TODO
-        pass
+        # Currently: linear variation with distance to center
+
+        x = (np.arange(-16, 16, 1) + 0.5) / 32
+        y = (np.arange(-16, 16, 1) + 0.5) / 32
+        xx, yy = np.meshgrid(x, y, sparse=True)
+        image_weights = 1 - np.sqrt(xx ** 2 + yy ** 2)
+
+        img_to_write = np.concatenate(
+            [img_to_write, [image_weights]], 0
+        )  # (nb_canals, 32, 32)
+
     # define save paths
     tiff_folder_path = os.path.join(
         args.stats_path,
@@ -280,7 +296,9 @@ def create_geotiff_raster(
     )
 
     create_tiff(
-        nb_channels=args.nb_stratum,
+        nb_channels=args.nb_stratum
+        + 1
+        + add_weights_band,  # stratum + hard raster + weights
         new_tiff_name=tiff_file_path,
         width=args.diam_pix,
         height=args.diam_pix,
