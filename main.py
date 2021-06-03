@@ -172,6 +172,8 @@ def main():
         for fold_id, infos in cloud_info_list_by_fold.items()
         for p in infos
     ]
+
+    # create inference results csv
     df_inference = pd.DataFrame(cloud_info_list_all_folds)
     inference_path = os.path.join(args.stats_path, "PCC_inference_all_placettes.csv")
     df_inference["error_veg_b"] = (
@@ -185,6 +187,8 @@ def main():
         df_inference["error_veg_b"] + df_inference["error_veg_moy"]
     ) / 2
     df_inference.to_csv(inference_path, index=False)
+
+    # Formate the stats.txt fil into a human- & computer-readable csv
 
 
 if __name__ == "__main__":

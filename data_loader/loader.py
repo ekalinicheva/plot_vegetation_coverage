@@ -32,6 +32,8 @@ def augment(cloud_data):
             a_max=clip,
         ).astype(np.float32)
     )
+
+    # TODO: consider adding random cropping of placettes to simulate parcelles borders
     return cloud_data
 
 
@@ -70,6 +72,10 @@ def cloud_loader_from_parcel(parcel_points_nparray, disk_center):
 
 
 def normalize_cloud_data(cloud_data, args):
+    """
+    Normalize data by reducing scale, to feed te neural net.
+    :param cloud_data: np.array of shape (9, N)
+    """
     # normalizing data
     # Z data was already partially normalized during loading
     xmean, ymean = np.mean(cloud_data[0:2], axis=1)

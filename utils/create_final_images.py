@@ -279,73 +279,22 @@ def create_final_images(
         # we get prediction stats string
         pred_cloud = pred_pointwise_b[b]
         current_cloud = cloud[b]
+
         # we do raster reprojection, but we do not use torch scatter as we have to associate each value to a pixel
-        xy = current_cloud[:2]
-        xy = torch.floor(
-            (xy - torch.min(xy, dim=1).values.view(2, 1).expand_as(xy))
-            / (torch.max(xy, dim=1).values - torch.min(xy, dim=1).values + 0.0001)
-            .view(2, 1)
-            .expand_as(xy)
-            * args.diam_pix
-        ).int()
-        xy = xy.cpu().numpy()
-        unique, index, inverse = np.unique(
-            xy.T, axis=0, return_index=True, return_inverse=True
+        xy, image_low_veg, image_med_veg, image_high_veg = infer_and_project_on_rasters(
+            current_cloud, args, pred_cloud
         )
-
-        # we get the values for each unique pixel and write them to rasters
-        image_ground = np.full((args.diam_pix, args.diam_pix), np.nan)
-        image_med_veg = np.full((args.diam_pix, args.diam_pix), np.nan)
-        if args.nb_stratum == 3:
-            image_high_veg = np.full((args.diam_pix, args.diam_pix), np.nan)
-        else:
-            image_high_veg = None
-        for i in np.unique(inverse):
-            where = np.where(inverse == i)[0]
-            k, m = xy.T[where][0]
-            maxpool = nn.MaxPool1d(len(where))
-            max_pool_val = (
-                maxpool(pred_cloud[:, where].unsqueeze(0))
-                .cpu()
-                .detach()
-                .numpy()
-                .flatten()
-            )
-
-            if args.norm_ground:  # we normalize ground level coverage values
-                proba_low_veg = max_pool_val[0] / (max_pool_val[:2].sum())
-            else:  # we do not normalize anything, as bare soil coverage does not participate in absolute loss
-                proba_low_veg = max_pool_val[0]
-            proba_med_veg = max_pool_val[2]
-            image_ground[m, k] = proba_low_veg
-            image_med_veg[m, k] = proba_med_veg
-
-            if args.nb_stratum == 3:
-                proba_high_veg = max_pool_val[3]
-                image_high_veg[m, k] = proba_high_veg
-        image_ground = np.flip(
-            image_ground, axis=0
-        )  # we flip along y axis as the 1st raster row starts with 0
-        image_med_veg = np.flip(image_med_veg, axis=0)
-        if args.nb_stratum == 3:
-            image_high_veg = np.flip(image_high_veg, axis=0)
         # We normalize back x,y values to create a tiff file with 2 rasters
         if create_raster:
-            xy = xy * 10 + np.asarray(mean_dataset[plot_name]).reshape(-1, 1)
-            geo = [
-                np.min(xy, axis=1)[0],
-                (np.max(xy, axis=1)[0] - np.min(xy, axis=1)[0]) / args.diam_pix,
-                0,
-                np.max(xy, axis=1)[1],
-                0,
-                (-np.max(xy, axis=1)[1] + np.min(xy, axis=1)[1]) / args.diam_pix,
-            ]
-            if args.nb_stratum == 2:
-                img_to_write = np.concatenate(([image_ground], [image_med_veg]), 0)
-            else:
-                img_to_write = np.concatenate(
-                    ([image_ground], [image_med_veg], [image_high_veg]), 0
-                )
+            plot_center = mean_dataset[plot_name]
+            img_to_write, geo = rescale_xy_and_get_geotransformation_(
+                xy,
+                plot_center,
+                args,
+                image_low_veg,
+                image_med_veg,
+                image_high_veg,
+            )
             create_tiff(
                 nb_channels=args.nb_stratum,
                 new_tiff_name=stats_path + plot_name + ".tif",
@@ -355,6 +304,7 @@ def create_final_images(
                 data_array=img_to_write,
                 geotransformation=geo,
             )
+
         if args.adm:
             text = (
                 "Pred "
@@ -383,7 +333,7 @@ def create_final_images(
         # We create an image with 5 or 6 subplots:
         # 1. original point cloud, 2. LV image, 3. pointwise prediction point cloud, 4. MV image, 5.Stratum probabilities point cloud, 6.(optional) HV image
         visualize(
-            image_ground,
+            image_low_veg,
             image_med_veg,
             current_cloud,
             pred_cloud,
@@ -396,7 +346,7 @@ def create_final_images(
         )
         if args.nb_stratum == 3:
             visualize_article(
-                image_ground,
+                image_low_veg,
                 image_med_veg,
                 image_high_veg,
                 current_cloud,
@@ -405,6 +355,81 @@ def create_final_images(
                 args,
                 txt=text,
             )
+
+
+def rescale_xy_and_get_geotransformation_(
+    xy, plot_center_xy, args, image_low_veg, image_med_veg, image_high_veg
+):
+    xy = xy * 10 + np.asarray(plot_center_xy).reshape(-1, 1)
+    geo = [
+        np.min(xy, axis=1)[0],
+        (np.max(xy, axis=1)[0] - np.min(xy, axis=1)[0]) / args.diam_pix,
+        0,
+        np.max(xy, axis=1)[1],
+        0,
+        (-np.max(xy, axis=1)[1] + np.min(xy, axis=1)[1]) / args.diam_pix,
+    ]
+    if args.nb_stratum == 2:
+        img_to_write = np.concatenate(([image_low_veg], [image_med_veg]), 0)
+    else:
+        img_to_write = np.concatenate(
+            ([image_low_veg], [image_med_veg], [image_high_veg]), 0
+        )
+    return img_to_write, geo
+
+
+def infer_and_project_on_rasters(current_cloud, args, pred_cloud):
+    # we do raster reprojection, but we do not use torch scatter as we have to associate each value to a pixel
+    # Outputs are
+    """
+    xy:
+     image_low_veg, image_med_veg, image_high_veg
+    """
+    xy = current_cloud[:2]
+    xy = torch.floor(
+        (xy - torch.min(xy, dim=1).values.view(2, 1).expand_as(xy))
+        / (torch.max(xy, dim=1).values - torch.min(xy, dim=1).values + 0.0001)
+        .view(2, 1)
+        .expand_as(xy)
+        * args.diam_pix
+    ).int()
+    xy = xy.cpu().numpy()
+    unique, index, inverse = np.unique(
+        xy.T, axis=0, return_index=True, return_inverse=True
+    )
+
+    # we get the values for each unique pixel and write them to rasters
+    image_low_veg = np.full((args.diam_pix, args.diam_pix), np.nan)
+    image_med_veg = np.full((args.diam_pix, args.diam_pix), np.nan)
+    if args.nb_stratum == 3:
+        image_high_veg = np.full((args.diam_pix, args.diam_pix), np.nan)
+    else:
+        image_high_veg = None
+    for i in np.unique(inverse):
+        where = np.where(inverse == i)[0]
+        k, m = xy.T[where][0]
+        maxpool = nn.MaxPool1d(len(where))
+        max_pool_val = (
+            maxpool(pred_cloud[:, where].unsqueeze(0)).cpu().detach().numpy().flatten()
+        )
+
+        if args.norm_ground:  # we normalize ground level coverage values
+            proba_low_veg = max_pool_val[0] / (max_pool_val[:2].sum())
+        else:  # we do not normalize anything, as bare soil coverage does not participate in absolute loss
+            proba_low_veg = max_pool_val[0]
+        proba_med_veg = max_pool_val[2]
+        image_low_veg[m, k] = proba_low_veg
+        image_med_veg[m, k] = proba_med_veg
+
+        if args.nb_stratum == 3:
+            proba_high_veg = max_pool_val[3]
+            image_high_veg[m, k] = proba_high_veg
+    # we flip along y axis as the 1st raster row starts with 0
+    image_low_veg = np.flip(image_low_veg, axis=0)
+    image_med_veg = np.flip(image_med_veg, axis=0)
+    if args.nb_stratum == 3:
+        image_high_veg = np.flip(image_high_veg, axis=0)
+    return xy, image_low_veg, image_med_veg, image_high_veg
 
 
 # We create a tiff file with 2 or 3 stratum

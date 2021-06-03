@@ -3,5 +3,7 @@
 /experiments/
 /.vscode/
 __pycache__/
+/__pycache__/
+
 parcelles_splitting_dev_notebook.ipynb
 .ipynb_checkpoints/
