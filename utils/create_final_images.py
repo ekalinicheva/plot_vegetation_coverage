@@ -277,16 +277,16 @@ def create_final_images(
     """
     for b in range(len(pred_pointwise_b)):
         # we get prediction stats string
-        pred_cloud = pred_pointwise_b[b]
+        pred_pointwise = pred_pointwise_b[b]
         current_cloud = cloud[b]
+        plot_center = mean_dataset[plot_name]
 
         # we do raster reprojection, but we do not use torch scatter as we have to associate each value to a pixel
-        xy, image_low_veg, image_med_veg, image_high_veg = infer_and_project_on_rasters(
-            current_cloud, args, pred_cloud
+        image_low_veg, image_med_veg, image_high_veg = infer_and_project_on_rasters(
+            current_cloud, args, pred_pointwise
         )
         # We normalize back x,y values to create a tiff file with 2 rasters
         if create_raster:
-            plot_center = mean_dataset[plot_name]
             img_to_write, geo = rescale_xy_and_get_geotransformation_(
                 xy,
                 plot_center,
@@ -336,7 +336,7 @@ def create_final_images(
             image_low_veg,
             image_med_veg,
             current_cloud,
-            pred_cloud,
+            pred_pointwise,
             plot_name,
             stats_path,
             args,
@@ -382,10 +382,12 @@ def infer_and_project_on_rasters(current_cloud, args, pred_cloud):
     # we do raster reprojection, but we do not use torch scatter as we have to associate each value to a pixel
     # Outputs are
     """
-    xy:
+    xy: pixel position of all points of the cloud as if (xmin, y_min) = (0,0)
      image_low_veg, image_med_veg, image_high_veg
     """
-    xy = current_cloud[:2]
+    xy = current_cloud[
+        0, :2, :
+    ]  # Careful to this batch dimenison that may go away at some point !
     xy = torch.floor(
         (xy - torch.min(xy, dim=1).values.view(2, 1).expand_as(xy))
         / (torch.max(xy, dim=1).values - torch.min(xy, dim=1).values + 0.0001)
@@ -429,7 +431,7 @@ def infer_and_project_on_rasters(current_cloud, args, pred_cloud):
     image_med_veg = np.flip(image_med_veg, axis=0)
     if args.nb_stratum == 3:
         image_high_veg = np.flip(image_high_veg, axis=0)
-    return xy, image_low_veg, image_med_veg, image_high_veg
+    return image_low_veg, image_med_veg, image_high_veg
 
 
 # We create a tiff file with 2 or 3 stratum

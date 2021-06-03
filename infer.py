@@ -21,7 +21,6 @@ np.random.seed(42)
 torch.cuda.empty_cache()
 
 # We import from other files
-from config import args
 from utils.useful_functions import *
 from data_loader.loader import *
 from utils.load_las_data import load_all_las_from_folder, open_metadata_dataframe
@@ -33,8 +32,15 @@ from utils.point_cloud_classifier import PointCloudClassifier
 from model.infer_utils import (
     divide_parcel_las_and_get_disk_centers,
     extract_points_within_disk,
-    infer_from_single_cloud,
+    create_geotiff_raster,
 )
+from utils.reproject_to_2d_and_predict_plot_coverage import project_to_2d
+
+
+from config import args
+
+args.z_max = 24.14  # the TRAINING args should be loaded !
+
 
 print("Everything is imported")
 
@@ -43,7 +49,7 @@ np.random.seed(42)
 torch.cuda.empty_cache()
 
 # Create the result folder
-create_new_experiment_folder(args)  # new paths are added to args
+create_new_experiment_folder(args, infer_mode=True)  # new paths are added to args
 las_folder = args.las_parcelles_folder_path
 las_filenames = os.listdir(las_folder)
 
@@ -70,30 +76,45 @@ for las_filename in las_filenames:
         args, las_folder, las_filename, save_fig_of_division=True
     )
 
-    # TODO: replace this loop by an ad-hoc DataLoader
+    # TODO: replace this loop by a cleaner ad-hoc DataLoader
 
-    for center in grid_pixel_xy_centers:
-        contained_points_nparray = extract_points_within_disk(points_nparray, center)
+    idx_for_break = 0  # TODO: remove
+    for plot_center in grid_pixel_xy_centers[40:]:
+        contained_points_nparray = extract_points_within_disk(
+            points_nparray, plot_center
+        )
         # infer if non-empty selection
         if contained_points_nparray.shape[0] > 0:
+            las_id = las_filename.split(".")[0]
+
+            # TODO: remove print
+            print(contained_points_nparray.shape)
+
+            contained_points_nparray = contained_points_nparray.transpose()
+            contained_points_nparray = normalize_cloud_data(
+                contained_points_nparray, args
+            )
+
             # add a batch dim before trying out dataloader
             contained_points_nparray = np.expand_dims(contained_points_nparray, axis=0)
-            contained_points_nparray = torch.from_numpy(contained_points_nparray)
-            print(contained_points_nparray.shape)
-            a, b, pred_pixels = infer_from_single_cloud(
-                model, PCC, contained_points_nparray, args
-            )
-            print(pred_pixels)
+            contained_points_tensor = torch.from_numpy(contained_points_nparray)
 
-    # contained_points_nparray
-    # generate the train and test dataset
-    # eval_set = tnt.dataset.ListDataset(
-    #     test_list,
-    #     functools.partial(
-    #         cloud_loader,
-    #         dataset=nparray_clouds_dict,
-    #         df_gt=df_gt,
-    #         train=False,
-    #         args=args,
-    #     ),
-    # )
+            # infer
+            model.eval()
+            # compute pointwise prediction
+            pred_pointwise, _ = PCC.run(model, contained_points_tensor)
+
+            # pred_pointwise was permuted from (scores_nb, pts_nb) to (pts_nb, scores_nb) for some reasons at the end of PCC.run
+            pred_pointwise = pred_pointwise.permute(1, 0)
+            create_geotiff_raster(
+                args,
+                contained_points_nparray[0, :2, :],  # xy nparray
+                pred_pointwise,
+                contained_points_tensor,
+                plot_center,
+                las_id,
+                add_weights_band=False,
+            )
+            idx_for_break += 1
+            if idx_for_break > 10:
+                break

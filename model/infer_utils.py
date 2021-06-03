@@ -220,21 +220,71 @@ def save_centers_dict(centers_dict, centers_dict_path):
         json.dump(centers_dict, outfile)
 
 
-def infer_from_single_cloud(model, PCC, cloud, args):
-    """
-    Returns: prediction at the pixel level
-    """
-    model.eval()
-    # loader = torch.utils.data.DataLoader(
-    #     test_set, collate_fn=cloud_collate, batch_size=1, shuffle=False
-    # )
-    # if PCC.is_cuda:
-    #     gt = gt.cuda()
+# def infer_from_single_cloud(model, PCC, cloud, args):
+#     """
+#     Returns: prediction at the pixel level
+#     Cloud is a single cloud tensor with batch dimension = 1.
+#     """
+#     model.eval()
+#     # loader = torch.utils.data.DataLoader(
+#     #     test_set, collate_fn=cloud_collate, batch_size=1, shuffle=False
+#     # )
+#     # if PCC.is_cuda:
+#     #     gt = gt.cuda()
 
-    pred_pointwise, pred_pointwise_b = PCC.run(model, cloud)  # compute the prediction
+#     pred_pointwise, pred_pointwise_b = PCC.run(model, cloud)  # compute the prediction
 
-    _, _, pred_pixels = project_to_2d(
-        pred_pointwise, cloud, pred_pointwise_b, PCC, args
-    )  # compute plot prediction
+#     _, _, pred_pixels = project_to_2d(
+#         pred_pointwise, cloud, pred_pointwise_b, PCC, args
+#     )  # compute plot prediction
 
-    return pred_pixels
+#     return pred_pointwise, pred_pixels
+
+
+def create_geotiff_raster(
+    args,
+    xy,
+    pred_pointwise,
+    current_cloud,
+    plot_center,
+    plot_name,
+    add_weights_band=False,
+):
+    """ """
+    # we do raster reprojection, but we do not use torch scatter as we have to associate each value to a pixel
+    image_low_veg, image_med_veg, image_high_veg = infer_and_project_on_rasters(
+        current_cloud, args, pred_pointwise
+    )
+
+    # We normalize back x,y values to create a tiff file with
+    img_to_write, geo = rescale_xy_and_get_geotransformation_(
+        xy,
+        plot_center,
+        args,
+        image_low_veg,
+        image_med_veg,
+        image_high_veg,
+    )
+    if add_weights_band:
+        # TODO
+        pass
+    # define save paths
+    tiff_folder_path = os.path.join(
+        args.stats_path,
+        f"img/rasters/{plot_name}/",
+    )
+    create_dir(tiff_folder_path)
+    tiff_file_path = os.path.join(
+        tiff_folder_path,
+        f"predictions_{plot_name}_X{plot_center[0]:.0f}_Y{plot_center[1]:.0f}.tif",
+    )
+
+    create_tiff(
+        nb_channels=args.nb_stratum,
+        new_tiff_name=tiff_file_path,
+        width=args.diam_pix,
+        height=args.diam_pix,
+        datatype=gdal.GDT_Float32,
+        data_array=img_to_write,
+        geotransformation=geo,
+    )
