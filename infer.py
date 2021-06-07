@@ -58,17 +58,25 @@ las_filenames = [l for l in las_filenames if l.lower().endswith(".las")]
 
 # define the classifier
 model = torch.load(args.trained_model_path)
-print(f"trained model was loaded from {args.trained_model_path}")
+print_stats(
+    args.stats_file,
+    f"trained model was loaded from {args.trained_model_path}",
+    print_to_console=True,
+)
 model.eval()
 PCC = PointCloudClassifier(args)
 
 for las_filename in las_filenames:
-    print(f"Inference on parcel {las_filename}")
+    print_stats(
+        args.stats_file,
+        f"Inference on parcel file {las_filename}",
+        print_to_console=True,
+    )
 
     # TODO : remove this debug condition
-    # if args.mode == "DEV":
-    #     if las_filename != "004009611-11-13.las":
-    #         continue
+    if args.mode == "DEV":
+        if las_filename != "004000715-5-18.las":  # "004009611-11-13.las":
+            continue
 
     # her we divide all parcels into plots
     grid_pixel_xy_centers, points_nparray = divide_parcel_las_and_get_disk_centers(
@@ -78,44 +86,40 @@ for las_filename in las_filenames:
     # TODO: replace this loop by a cleaner ad-hoc DataLoader
 
     idx_for_break = 0  # TODO: remove
-    idx_for_break_max = 1
-    for plot_center in grid_pixel_xy_centers[40:]:  # TODO: loop through all!
-        break
-        contained_points_nparray = extract_points_within_disk(
-            points_nparray, plot_center
-        )
+    idx_for_break_max = 5
+    for plot_center in grid_pixel_xy_centers[46:]:  # TODO: loop through all!
+        # break
+
+        plots_point_nparray = extract_points_within_disk(points_nparray, plot_center)
+
         # infer if non-empty selection
-        if contained_points_nparray.shape[0] > 0:
-            las_id = las_filename.split(".")[0]
+        # TODO: remove print
+        print(plots_point_nparray.shape)
+        if plots_point_nparray.shape[0] > 0:
 
-            # TODO: remove print
-            print(contained_points_nparray.shape)
-
-            contained_points_nparray = contained_points_nparray.transpose()
-            contained_points_nparray = normalize_cloud_data(
-                contained_points_nparray, args
-            )
+            plots_point_nparray = plots_point_nparray.transpose()
+            plots_point_nparray = normalize_cloud_data(plots_point_nparray, args)
 
             # add a batch dim before trying out dataloader
-            # contained_points_nparray = np.expand_dims(contained_points_nparray, axis=0)
-            contained_points_tensor = torch.from_numpy(contained_points_nparray)
+            plots_point_nparray = np.expand_dims(plots_point_nparray, axis=0)
+            plot_points_tensor = torch.from_numpy(plots_point_nparray)
 
-            # infer
-            model.eval()
             # compute pointwise prediction
-            pred_pointwise, _ = PCC.run(model, contained_points_tensor)
+            pred_pointwise, _ = PCC.run(model, plot_points_tensor)
 
             # pred_pointwise was permuted from (scores_nb, pts_nb) to (pts_nb, scores_nb) for some reasons at the end of PCC.run
             pred_pointwise = pred_pointwise.permute(1, 0)
+
+            las_id = las_filename.split(".")[0]
             create_geotiff_raster(
                 args,
-                contained_points_nparray[:2, :],  # xy nparray
+                plots_point_nparray[0, :2, :],  # (2, N_points) xy nparray
                 pred_pointwise,
-                contained_points_tensor,  # cloud tensor
+                plot_points_tensor[0, :, :],  # cloud 2D tensor (N_feats, N_points)
                 plot_center,
                 las_id,
                 add_weights_band=True,
             )
             idx_for_break += 1
-            if idx_for_break > idx_for_break_max:
+            if idx_for_break >= idx_for_break_max:
                 break

@@ -385,12 +385,10 @@ def infer_and_project_on_rasters(current_cloud, args, pred_cloud):
     # we do raster reprojection, but we do not use torch scatter as we have to associate each value to a pixel
     # Outputs are
     """
-    xy: pixel position of all points of the cloud as if (xmin, y_min) = (0,0)
+    current_cloud: (2, N) 2D tensor
      image_low_veg, image_med_veg, image_high_veg
     """
-    xy = current_cloud[
-        :2, :
-    ]  # Careful to this batch dimenison that may go away at some point !
+    xy = current_cloud[:2, :]
     xy = torch.floor(
         (xy - torch.min(xy, dim=1).values.view(2, 1).expand_as(xy))
         / (torch.max(xy, dim=1).values - torch.min(xy, dim=1).values + 0.0001)

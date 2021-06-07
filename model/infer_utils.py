@@ -205,18 +205,12 @@ def divide_parcel_las_and_get_disk_centers(
 
 
 def extract_points_within_disk(points_nparray, center, radius=10):
-
-    # Catch exception : center may be nparray or a Point.
-    try:
-        prepped_buffer = prep(center.buffer(radius))
-    except:
-        prepped_buffer = prep(Point(center).buffer(radius))
-
-    multipoints = asMultiPoint(points_nparray[:, :2])
-    # boolean array indicating what points were contained within distance from the line
-    contained = np.fromiter(map(prepped_buffer.contains, multipoints), np.bool)
-    # take all rows from all_objs that are within distance from line
-    contained_points = np.compress(contained, points_nparray, axis=0)
+    """From a (2, N) np.array with x, y as first features, extract points within radius
+    from the center = (x_center, y_center)"""
+    xy = points_nparray[:, :2]  # (N, 2)
+    contained_points = points_nparray[
+        ((xy - center) ** 2).sum(axis=1) <= (radius * radius)
+    ]  # (N, f)
 
     return contained_points
 
@@ -249,9 +243,9 @@ def save_centers_dict(centers_dict, centers_dict_path):
 
 def create_geotiff_raster(
     args,
-    xy,
+    xy_nparray,  # (2,N) tensor
     pred_pointwise,
-    current_cloud,
+    plot_points_tensor,  # (1,f,N) tensor
     plot_center,
     plot_name,
     add_weights_band=False,
@@ -259,12 +253,12 @@ def create_geotiff_raster(
     """ """
     # we do raster reprojection, but we do not use torch scatter as we have to associate each value to a pixel
     image_low_veg, image_med_veg, image_high_veg = infer_and_project_on_rasters(
-        current_cloud, args, pred_pointwise
+        plot_points_tensor, args, pred_pointwise
     )
 
     # We normalize back x,y values to create a tiff file with
     img_to_write, geo = rescale_xy_and_get_geotransformation_(
-        xy,
+        xy_nparray,
         plot_center,
         args,
         image_low_veg,
