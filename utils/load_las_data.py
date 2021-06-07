@@ -11,6 +11,7 @@ warnings.simplefilter(action="ignore")
 
 def load_all_las_from_folder(args):
     las_folder = args.las_placettes_folder_path
+
     # We open las files and create a training dataset
     nparray_clouds_dict = {}  # dict to store numpy array with each plot separately
     xy_averages_dict = (
@@ -21,9 +22,9 @@ def load_all_las_from_folder(args):
     las_files = os.listdir(las_folder)
     las_files = [l for l in las_files if l.lower().endswith(".las")]
 
-    if args.mode == "DEV":
-        shuffle(las_files)
-        las_files = las_files[: (5 * 5)]  # 5 plot by fold
+    # if args.mode == "DEV":
+    #     shuffle(las_files)
+    #     las_files = las_files[: (5 * 5)]  # 5 plot by fold
 
     all_points_nparray = np.empty((0, 9))
     for las_file in las_files:
@@ -96,13 +97,14 @@ def open_metadata_dataframe(args, pl_id_to_keep):
     df_gt = df_gt[df_gt["Name"].isin(pl_id_to_keep)]
 
     # TODO : this is ADM based on ASP definition
+    # TODO: correct this !
     if "ADM" not in df_gt:
         df_gt["ADM_BASSE"] = df_gt["COUV_BASSE"] - df_gt["NON_ACC_1"]
-        df_gt["ADM_HAUTE"] = df_gt["COUV_HAUTE"] - df_gt["NON_ACC_2"]
-        df_gt["ADM"] = df_gt[["ADM_BASSE", "ADM_HAUTE"]].max(axis=1)
+        df_gt["ADM_INTER"] = df_gt["COUV_HAUTE"] - df_gt["NON_ACC_2"]
+        df_gt["ADM"] = df_gt[["ADM_BASSE", "ADM_INTER"]].max(axis=1)
 
         del df_gt["ADM_BASSE"]
-        del df_gt["ADM_HAUTE"]
+        del df_gt["ADM_INTER"]
 
     # check that we have all columns we need
     assert all(

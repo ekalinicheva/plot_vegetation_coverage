@@ -88,9 +88,9 @@ def main():
     start_time = time.time()
     fold_id = 1
     cloud_info_list_by_fold = {}
-    print("Starting cross-validation")
+    print_stats(args.stats_file, "Starting cross-validation")
     for train_ind, test_ind in kf.split(placettes_names):
-        print("Cross-validation FOLD = %d" % (fold_id))
+        print_stats(args.stats_file, "Cross-validation FOLD = %d" % (fold_id))
         train_list = placettes_names[train_ind]
         test_list = placettes_names[test_ind]
 
@@ -159,7 +159,7 @@ def main():
             print_to_console=True,
         )
         fold_id += 1
-        if args.mode == "DEV" and fold_id >= 2:
+        if args.mode == "DEV" and fold_id >= 1:
             break
 
     stats_for_all_folds(
@@ -175,7 +175,6 @@ def main():
 
     # create inference results csv
     df_inference = pd.DataFrame(cloud_info_list_all_folds)
-    inference_path = os.path.join(args.stats_path, "PCC_inference_all_placettes.csv")
     df_inference["error_veg_b"] = (
         df_inference["pred_veg_b"] - df_inference["vt_veg_b"]
     ).abs()
@@ -185,7 +184,13 @@ def main():
     df_inference["error_veg_b_and_moy"] = (
         df_inference["error_veg_b"] + df_inference["error_veg_moy"]
     ) / 2
+
+    # save
+    inference_path = os.path.join(args.stats_path, "PCC_inference_all_placettes.csv")
     df_inference.to_csv(inference_path, index=False)
+    print_stats(
+        args.stats_file, f"Saved infered, cross-validated results to {inference_path}"
+    )
 
     # Formate the stats.txt fil into a human- & computer-readable csv
 
