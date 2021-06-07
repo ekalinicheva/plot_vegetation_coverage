@@ -3,26 +3,16 @@ import warnings
 warnings.simplefilter(action="ignore")
 
 import functools
-import argparse
 import numpy as np
 import pandas as pd
 
 from sklearn.model_selection import KFold
-from torch.utils.tensorboard import SummaryWriter
-from scipy.stats import gamma
 import os
 import time
 import torch
-import torch.optim as optim
-from torch.optim.lr_scheduler import StepLR
 import torchnet as tnt
-from sklearn.neighbors import NearestNeighbors
 
-import gc
-
-# from osgeo import gdal, osr  # TODO: UNCOMMENT
 import torch.nn as nn
-from scipy.special import digamma, polygamma
 
 import matplotlib
 
@@ -32,11 +22,6 @@ for i in range(2):
         matplotlib.use("TkAgg")  # rerun this cell if an error occurs.
     except:
         print("!")
-import matplotlib.pyplot as plt
-
-
-import pickle
-from torch_scatter import scatter_max, scatter_mean
 
 print(torch.cuda.is_available())
 np.random.seed(42)
@@ -44,15 +29,13 @@ torch.cuda.empty_cache()
 
 # We import from other files
 from config import args
-from model.model import PointNet
 from utils.useful_functions import *
 from data_loader.loader import *
-from utils.open_las import open_las, open_metadata_dataframe
+from utils.load_las_data import load_all_las_from_folder, open_metadata_dataframe
 from model.loss_functions import *
 from model.accuracy import *
 from em_gamma.get_gamma_parameters_em import *
-from train import train, train_full
-from test import eval
+from model.train import train_full
 
 print("Everything is imported")
 
@@ -68,16 +51,22 @@ def main():
     create_new_experiment_folder(args)  # new paths are added to args
 
     # Load Las files for placettes
-    all_points, dataset, mean_dataset = open_las(args.las_files_folder_path)
-    print("Our dataset contains " + str(len(dataset)) + " plots.")
+    (
+        all_points_nparray,
+        nparray_clouds_dict,
+        xy_averages_dict,
+    ) = load_all_las_from_folder(args)
+    print("Our dataset contains " + str(len(nparray_clouds_dict)) + " plots.")
 
     # Load ground truth csv file
     # Name, 'COUV_BASSE', 'COUV_SOL', 'COUV_INTER', 'COUV_HAUTE', 'ADM'
-    df_gt, placettes_names = open_metadata_dataframe(args, pl_id_to_keep=dataset.keys())
+    df_gt, placettes_names = open_metadata_dataframe(
+        args, pl_id_to_keep=nparray_clouds_dict.keys()
+    )
     print(df_gt.head())
 
     # Fit a mixture of 2 gamma distribution if not already done
-    z_all = all_points[:, 2]
+    z_all = all_points_nparray[:, 2]
     args.z_max = np.max(
         z_all
     )  # maximum z value for data normalization, obtained from the normalized dataset analysis
@@ -109,13 +98,21 @@ def main():
         test_set = tnt.dataset.ListDataset(
             test_list,
             functools.partial(
-                cloud_loader, dataset=dataset, df_gt=df_gt, train=False, args=args
+                cloud_loader,
+                dataset=nparray_clouds_dict,
+                df_gt=df_gt,
+                train=False,
+                args=args,
             ),
         )
         train_set = tnt.dataset.ListDataset(
             train_list,
             functools.partial(
-                cloud_loader, dataset=dataset, df_gt=df_gt, train=True, args=args
+                cloud_loader,
+                dataset=nparray_clouds_dict,
+                df_gt=df_gt,
+                train=True,
+                args=args,
             ),
         )
 
@@ -126,7 +123,7 @@ def main():
             final_test_losses_list,
             cloud_info_list,
         ) = train_full(
-            args, fold_id, train_set, test_set, test_list, mean_dataset, params
+            args, fold_id, train_set, test_set, test_list, xy_averages_dict, params
         )
 
         cloud_info_list_by_fold[fold_id] = cloud_info_list
@@ -175,6 +172,8 @@ def main():
         for fold_id, infos in cloud_info_list_by_fold.items()
         for p in infos
     ]
+
+    # create inference results csv
     df_inference = pd.DataFrame(cloud_info_list_all_folds)
     inference_path = os.path.join(args.stats_path, "PCC_inference_all_placettes.csv")
     df_inference["error_veg_b"] = (
@@ -183,11 +182,12 @@ def main():
     df_inference["error_veg_moy"] = (
         df_inference["pred_veg_moy"] - df_inference["vt_veg_moy"]
     ).abs()
-    df_inference.to_csv(inference_path, index=False)  # TODO: remove just in case
     df_inference["error_veg_b_and_moy"] = (
         df_inference["error_veg_b"] + df_inference["error_veg_moy"]
     ) / 2
     df_inference.to_csv(inference_path, index=False)
+
+    # Formate the stats.txt fil into a human- & computer-readable csv
 
 
 if __name__ == "__main__":

@@ -32,6 +32,8 @@ def augment(cloud_data):
             a_max=clip,
         ).astype(np.float32)
     )
+
+    # TODO: consider adding random cropping of placettes to simulate parcelles borders
     return cloud_data
 
 
@@ -53,12 +55,31 @@ def cloud_loader(plot_id, dataset, df_gt, train, args):
         ].values
         / 100
     )
-    # gt = np.asarray([np.append(gt, [1 - gt[:, 2]])])
 
-    xmean, ymean = np.mean(cloud_data[0:2], axis=1)
+    cloud_data = normalize_cloud_data(cloud_data, args)
 
+    if train:
+        cloud_data = augment(cloud_data)
+
+    cloud_data = torch.from_numpy(cloud_data)
+    gt = torch.from_numpy(gt).float()
+    return cloud_data, gt
+
+
+def cloud_loader_from_parcel(parcel_points_nparray, disk_center):
+
+    pass
+
+
+def normalize_cloud_data(cloud_data, args):
+    """
+    Normalize data by reducing scale, to feed te neural net.
+    :param cloud_data: np.array of shape (9, N)
+    """
     # normalizing data
     # Z data was already partially normalized during loading
+    xmean, ymean = np.mean(cloud_data[0:2], axis=1)
+
     cloud_data[0] = (cloud_data[0] - xmean) / 10  # x
     cloud_data[1] = (cloud_data[1] - ymean) / 10  # y
     cloud_data[2] = (cloud_data[2]) / args.z_max  # z
@@ -68,13 +89,7 @@ def cloud_loader(plot_id, dataset, df_gt, train, args):
     int_max = 32768
     cloud_data[7] = cloud_data[7] / int_max
     cloud_data[8] = (cloud_data[8] - 1) / (7 - 1)
-
-    if train:
-        cloud_data = augment(cloud_data)
-
-    cloud_data = torch.from_numpy(cloud_data)
-    gt = torch.from_numpy(gt).float()
-    return cloud_data, gt
+    return cloud_data
 
 
 def cloud_collate(batch):

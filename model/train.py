@@ -14,18 +14,15 @@ from model.loss_functions import *
 from model.model import PointNet
 from utils.point_cloud_classifier import PointCloudClassifier
 from torch.utils.tensorboard import SummaryWriter
-from scipy.stats import gamma
 import os
-import time
 import torch
 import torch.optim as optim
 from torch.optim.lr_scheduler import StepLR
 import torchnet as tnt
-from sklearn.neighbors import NearestNeighbors
 from model.loss_functions import *
 from model.accuracy import *
-from test import eval
 
+from model.test import evaluate
 
 np.random.seed(42)
 
@@ -134,7 +131,7 @@ def train_full(args, fold_id, train_set, test_set, test_list, mean_dataset, para
             i_epoch + 1
         ) == args.n_epoch:  # if last epoch, we creare 2D images with points projections and infer values for all plots
             print("Last epoch")
-            test_losses, cloud_info_list = eval(
+            test_losses, cloud_info_list = evaluate(
                 model,
                 PCC,
                 test_set,
@@ -150,7 +147,7 @@ def train_full(args, fold_id, train_set, test_set, test_list, mean_dataset, para
             gc.collect()
             writer = write_to_writer(writer, args, i_epoch, test_losses, train=False)
         elif (i_epoch + 1) % args.n_epoch_test == 0:
-            test_losses, _ = eval(
+            test_losses, _ = evaluate(
                 model,
                 PCC,
                 test_set,
