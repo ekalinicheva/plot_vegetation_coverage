@@ -22,9 +22,9 @@ def load_all_las_from_folder(args):
     las_files = os.listdir(las_folder)
     las_files = [l for l in las_files if l.lower().endswith(".las")]
 
-    # if args.mode == "DEV":
-    #     shuffle(las_files)
-    #     las_files = las_files[: (5 * 5)]  # 5 plot by fold
+    if args.mode == "DEV":
+        shuffle(las_files)
+        las_files = las_files[: (5 * 5)]  # 5 plot by fold
 
     all_points_nparray = np.empty((0, 9))
     for las_file in las_files:
