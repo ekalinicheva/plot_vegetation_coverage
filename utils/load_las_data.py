@@ -4,11 +4,13 @@ import pandas as pd
 from laspy.file import File
 from sklearn.neighbors import NearestNeighbors
 import warnings
+from random import shuffle
 
 warnings.simplefilter(action="ignore")
 
 
-def load_all_las_from_folder(las_folder):
+def load_all_las_from_folder(args):
+    las_folder = args.las_placettes_folder_path
     # We open las files and create a training dataset
     nparray_clouds_dict = {}  # dict to store numpy array with each plot separately
     xy_averages_dict = (
@@ -17,12 +19,14 @@ def load_all_las_from_folder(las_folder):
 
     # We iterate through las files and transform them to np array
     las_files = os.listdir(las_folder)
+    las_files = [l for l in las_files if l.lower().endswith(".las")]
+
+    if args.mode == "DEV":
+        shuffle(las_files)
+        las_files = las_files[: (5 * 5)]  # 5 plot by fold
+
     all_points_nparray = np.empty((0, 9))
     for las_file in las_files:
-
-        # ignore file if not a LAS
-        if not las_file.lower().endswith(".las"):
-            continue
 
         # Parse LAS files
         points_nparray, xy_averages = load_single_las(las_folder, las_file)

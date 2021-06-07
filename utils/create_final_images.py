@@ -278,8 +278,8 @@ def create_final_images(
     for b in range(len(pred_pointwise_b)):
         # we get prediction stats string
         pred_pointwise = pred_pointwise_b[b]
-        current_cloud = cloud[b]
-        plot_center = mean_dataset[plot_name]
+        current_cloud = cloud[b]  # (9, N) tensor
+        plot_center = mean_dataset[plot_name]  # two values tuple
 
         # we do raster reprojection, but we do not use torch scatter as we have to associate each value to a pixel
         image_low_veg, image_med_veg, image_high_veg = infer_and_project_on_rasters(
@@ -287,6 +287,9 @@ def create_final_images(
         )
         # We normalize back x,y values to create a tiff file with 2 rasters
         if create_raster:
+            xy = (
+                current_cloud[:2, :].detach().cpu().numpy()
+            )  # (2, N) tensor -> (2, N) nparray
             img_to_write, geo = rescale_xy_and_get_geotransformation_(
                 xy,
                 plot_center,
@@ -386,7 +389,7 @@ def infer_and_project_on_rasters(current_cloud, args, pred_cloud):
      image_low_veg, image_med_veg, image_high_veg
     """
     xy = current_cloud[
-        0, :2, :
+        :2, :
     ]  # Careful to this batch dimenison that may go away at some point !
     xy = torch.floor(
         (xy - torch.min(xy, dim=1).values.view(2, 1).expand_as(xy))

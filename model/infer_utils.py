@@ -5,6 +5,7 @@ from utils.useful_functions import create_dir
 import pandas as pd
 import json
 import seaborn as sns
+from sys import getsizeof
 
 sns.set()
 import matplotlib.pyplot as plt
@@ -40,6 +41,8 @@ def divide_parcel_las_and_get_disk_centers(
     Note: outputs are preprcessed by load_single_las but are not normalized
     """
     points_nparray, _ = load_single_las(las_folder, las_filename)
+    # size_MB = getsizeof(round(getsizeof(points_nparray) / 1024 / 1024, 2))
+
     las_id = las_filename.split(".")[0]
     x_las, y_las = points_nparray[:, 0], points_nparray[:, 1]
     # subsample = False
@@ -59,7 +62,7 @@ def divide_parcel_las_and_get_disk_centers(
     within_circle_square_width_meters = 2 * cos_of_45_degrees * plot_radius_meters
     plot_diameter_in_pixels = args.diam_pix  # 32 by default
     plot_diameter_in_meters = 2 * plot_radius_meters
-    s = 5  # size of overlap in pixels
+    s = 1  # size of overlap in pixels
     square_xy_overlap = (
         s * plot_diameter_in_meters / plot_diameter_in_pixels
     )  # 0.625 by default
@@ -110,11 +113,11 @@ def divide_parcel_las_and_get_disk_centers(
         centers = pd.DataFrame(data=centers)
         centers.columns = ["x_n", "y_n"]
 
-        fig, ax = plt.subplots(figsize=(8, 8), subplot_kw={"aspect": "equal"})
+        fig, ax = plt.subplots(figsize=(10, 10), subplot_kw={"aspect": "equal"})
         ax.grid(False)
         ax.set_aspect("equal")  # Not working right now
-        plt.xlim(min(x_min_c, y_min_c) - 5, max(x_max_c, y_max_c) + 5)
-        plt.ylim(min(x_min_c, y_min_c) - 5, max(x_max_c, y_max_c) + 5)
+        plt.xlim(x_min_c - 5, x_max_c + 5)
+        plt.ylim(y_min_c - 5, y_max_c + 5)
         plt.ylabel("y_n", rotation=0)
         plt.title(
             f'Cutting in r=10m plots for parcel "{las_id}"'
@@ -131,23 +134,24 @@ def divide_parcel_las_and_get_disk_centers(
             color="g",
             clip=[[x_min_c, x_max_c], [y_min_c, y_max_c]],
         )  # thresh=0.2
-        sns.scatterplot(data=centers, x="x_n", y="y_n")
 
         # plot disks and squares
-        for row_idx, (x, y) in centers.iterrows():
-            a_circle = plt.Circle((x, y), 10, fill=False)
-            ax.add_patch(a_circle)
-            a_square = matplotlib.patches.Rectangle(
-                (
-                    x - within_circle_square_width_meters / 2,
-                    y - within_circle_square_width_meters / 2,
-                ),
-                within_circle_square_width_meters,
-                within_circle_square_width_meters,
-                fill=True,
-                alpha=0.15,
+        for _, (x, y) in centers.iterrows():
+            a_circle = plt.Circle(
+                (x, y), 10, fill=True, alpha=0.1, edgecolor="white", linewidth=1
             )
-            ax.add_patch(a_square)
+            ax.add_patch(a_circle)
+            a_circle = plt.Circle(
+                (x, y), 10, fill=False, edgecolor="white", linewidth=0.3
+            )
+            ax.add_patch(a_circle)
+        #     a_square = matplotlib.patches.Rectangle((x-within_circle_square_width_meters/2,
+        #                                              y-within_circle_square_width_meters/2),
+        #                                             within_circle_square_width_meters,
+        #                                             within_circle_square_width_meters,
+        #                                             fill=True, alpha =0.1)
+        #     ax.add_patch(a_square)
+        sns.scatterplot(data=centers, x="x_n", y="y_n", s=5)
 
         # plot boundaries of parcel
         plt.axhline(
@@ -193,7 +197,7 @@ def divide_parcel_las_and_get_disk_centers(
             cutting_plot_save_folder_path, f"cut_{parcel_id}.png"
         )
 
-        plt.savefig(cutting_plot_save_path)
+        plt.savefig(cutting_plot_save_path, dpi=200)
         plt.clf()
         plt.close("all")
 
@@ -201,6 +205,7 @@ def divide_parcel_las_and_get_disk_centers(
 
 
 def extract_points_within_disk(points_nparray, center, radius=10):
+
     # Catch exception : center may be nparray or a Point.
     try:
         prepped_buffer = prep(center.buffer(radius))
@@ -212,6 +217,7 @@ def extract_points_within_disk(points_nparray, center, radius=10):
     contained = np.fromiter(map(prepped_buffer.contains, multipoints), np.bool)
     # take all rows from all_objs that are within distance from line
     contained_points = np.compress(contained, points_nparray, axis=0)
+
     return contained_points
 
 

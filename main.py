@@ -55,7 +55,7 @@ def main():
         all_points_nparray,
         nparray_clouds_dict,
         xy_averages_dict,
-    ) = load_all_las_from_folder(args.las_placettes_folder_path)
+    ) = load_all_las_from_folder(args)
     print("Our dataset contains " + str(len(nparray_clouds_dict)) + " plots.")
 
     # Load ground truth csv file
