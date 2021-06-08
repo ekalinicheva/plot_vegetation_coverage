@@ -1,5 +1,85 @@
 import numpy as np
 from utils.useful_functions import print_stats
+import pandas as pd
+
+# values should be in [0,1] since we deal with ratios of coverage
+bins_borders = np.array([5, 17.5, 29, 41.5, 58.5, 71, 82.5, 95, 101]) / 100
+bins_centers = np.array([0, 10, 25, 33, 50, 67, 75, 90, 100]) / 100
+bb_ = [0] + bins_borders.tolist()
+center_to_border_dict = {
+    center: borders for center, borders in zip(bins_centers, zip(bb_[:-1], bb_[1:]))
+}
+
+
+def compute_mae2(pred, vt):
+    borders = center_to_border_dict[vt]
+    if borders[0] <= pred <= borders[1]:
+        return 0.0
+    else:
+        return min(abs(borders[0] - pred), abs(borders[1] - pred))
+
+
+def is_accurate_with_margin(v, bounds, margin=0.1):
+    """Margin should be in [0,1] since we deal with ratios of coverage"""
+    if bounds[0] - margin <= v <= bounds[1] + v:
+        return 1
+    else:
+        return 0
+
+
+# we derive indicators of performance
+def calculate_performance_indicators(df):
+    """
+    All values are ratio between 0 and 1.
+    """
+    # round to 3rd to avoid artefacts like 0.8999999 for 0.9 as key of dict
+    df[["vt_veg_b", "vt_veg_moy", "vt_veg_h"]] = (
+        df[["vt_veg_b", "vt_veg_moy", "vt_veg_h"]].astype(np.float).round(3)
+    )
+    # MAE errors
+    df["error_veg_b"] = (df["pred_veg_b"] - df["vt_veg_b"]).abs()
+    df["error_veg_moy"] = (df["pred_veg_moy"] - df["vt_veg_moy"]).abs()
+    df["error_veg_h"] = (df["pred_veg_h"] - df["vt_veg_h"]).abs()
+    df["error_veg_b_and_moy"] = (df["error_veg_b"] + df["error_veg_moy"]) / 2
+
+    # MAE2 errors
+    df["error2_veg_b"] = df.apply(
+        lambda x: compute_mae2(x.pred_veg_b, x.vt_veg_b), axis=1
+    )
+    df["error2_veg_moy"] = df.apply(
+        lambda x: compute_mae2(x.pred_veg_moy, x.vt_veg_moy), axis=1
+    )
+    df["error2_veg_h"] = df.apply(
+        lambda x: compute_mae2(x.pred_veg_h, x.vt_veg_h), axis=1
+    )
+    df["error2_veg_b_and_moy"] = (df["error2_veg_b"] + df["error2_veg_moy"]) / 2
+
+    # mae2_b = df["error2_veg_b"].mean().round(2)
+    # mae2_moy = df["error2_veg_moy"].mean().round(2)
+    # mae2_h = df["error2_veg_h"].mean().round(2)
+    # mae2_b, mae2_moy, mae2_h
+
+    # Accuracy
+    cutter = lambda col: pd.cut(col, [-1] + bins_borders.tolist(), labels=bins_centers)
+    df["acc_veg_b"] = (cutter(df["pred_veg_b"]) == df["vt_veg_b"]) * 1
+    df["acc_veg_moy"] = (cutter(df["pred_veg_moy"]) == df["vt_veg_moy"]) * 1
+    df["acc_veg_h"] = (cutter(df["pred_veg_h"]) == df["vt_veg_h"]) * 1
+    df["acc_veg_b_and_moy"] = (df["acc_veg_b"] + df["acc_veg_moy"]) / 2
+    # accuracy 2
+    bound_value = lambda c: center_to_border_dict[c]
+    df["acc2_veg_b"] = df.apply(
+        lambda x: is_accurate_with_margin(x.pred_veg_b, bound_value(x.vt_veg_b)), axis=1
+    )
+    df["acc2_veg_moy"] = df.apply(
+        lambda x: is_accurate_with_margin(x.pred_veg_moy, bound_value(x.vt_veg_moy)),
+        axis=1,
+    )
+    df["acc2_veg_h"] = df.apply(
+        lambda x: is_accurate_with_margin(x.pred_veg_h, bound_value(x.vt_veg_h)), axis=1
+    )
+    df["acc2_veg_b_and_moy"] = (df["acc2_veg_b"] + df["acc2_veg_moy"]) / 2
+
+    return df
 
 
 # We compute all possible mean stats per loss for all folds

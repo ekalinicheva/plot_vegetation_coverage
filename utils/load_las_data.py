@@ -4,7 +4,11 @@ import pandas as pd
 from laspy.file import File
 from sklearn.neighbors import NearestNeighbors
 import warnings
-from random import shuffle
+import random
+
+random.seed(0)
+from random import random, shuffle
+
 
 warnings.simplefilter(action="ignore")
 
@@ -24,7 +28,7 @@ def load_all_las_from_folder(args):
 
     if args.mode == "DEV":
         shuffle(las_files)
-        las_files = las_files[: (5 * 5)]  # 5 plot by fold
+        las_files = las_files[: (5 * 2)]  # 2 plot by fold
 
     all_points_nparray = np.empty((0, 9))
     for las_file in las_files:

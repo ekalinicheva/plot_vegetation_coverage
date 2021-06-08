@@ -175,15 +175,8 @@ def main():
 
     # create inference results csv
     df_inference = pd.DataFrame(cloud_info_list_all_folds)
-    df_inference["error_veg_b"] = (
-        df_inference["pred_veg_b"] - df_inference["vt_veg_b"]
-    ).abs()
-    df_inference["error_veg_moy"] = (
-        df_inference["pred_veg_moy"] - df_inference["vt_veg_moy"]
-    ).abs()
-    df_inference["error_veg_b_and_moy"] = (
-        df_inference["error_veg_b"] + df_inference["error_veg_moy"]
-    ) / 2
+
+    df_inference = calculate_performance_indicators(df_inference)
 
     # save
     inference_path = os.path.join(args.stats_path, "PCC_inference_all_placettes.csv")
@@ -192,7 +185,8 @@ def main():
         args.stats_file, f"Saved infered, cross-validated results to {inference_path}"
     )
 
-    # Formate the stats.txt fil into a human- & computer-readable csv
+
+# Formate the stats.txt fil into a human- & computer-readable csv
 
 
 if __name__ == "__main__":

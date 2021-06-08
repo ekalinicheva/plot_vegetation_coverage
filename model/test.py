@@ -133,6 +133,7 @@ def evaluate(
                 gt_cpu = gt.cpu().numpy()[0]
             cloud_info = {
                 "pl_id": pl_id,
+                "pl_N_points": pred_pointwise.shape[0],
                 "pred_veg_b": pred_pl_cpu[0],
                 "pred_sol_nu": pred_pl_cpu[1],
                 "pred_veg_moy": pred_pl_cpu[2],
