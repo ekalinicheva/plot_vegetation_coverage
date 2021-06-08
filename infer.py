@@ -77,8 +77,8 @@ for las_filename in las_filenames:
     # TODO: replace this loop by a cleaner ad-hoc DataLoader
 
     idx_for_break = 0  # TODO: remove
-    idx_for_break_max = 5
-    for plot_center in grid_pixel_xy_centers[46:]:  # TODO: loop through all!
+    idx_for_break_max = np.inf
+    for plot_center in grid_pixel_xy_centers:  # TODO: loop through all!
         # break
 
         plots_point_nparray = extract_points_within_disk(points_nparray, plot_center)

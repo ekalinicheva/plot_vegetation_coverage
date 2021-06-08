@@ -32,7 +32,8 @@ parser.add_argument('--results_path', default=None, help="(Created on the fly) P
 parser.add_argument('--stats_path', default=None, help="(Created on the fly) Path to stats folder of current run")
 parser.add_argument('--stats_file', default=None, help="(Created on the fly) Path to stats file including losses")
 
-parser.add_argument('--trained_model_path', default=os.path.join(repo_absolute_path, "experiments/RESULTS_3_strata/only_stratum/PROD/2021-05-31_11h40m21s/model_ss_4096_dp_32_fold_1.pt"), help="Path to .pt file output by torch.save(net, path)")
+# TODO: replace this with an experiment folder
+parser.add_argument('--trained_model_path', default=os.path.join(repo_absolute_path, "experiments/RESULTS_3_strata/only_stratum/PROD/learning/2021-05-31_11h40m21s/model_ss_4096_dp_32_fold_1.pt"), help="Path to .pt file output by torch.save(net, path)")
 
 # Model Parameters
 parser.add_argument('--n_class', default=4, type=int,
