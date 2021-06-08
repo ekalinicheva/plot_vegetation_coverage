@@ -5,8 +5,6 @@ warnings.simplefilter(action="ignore")
 import numpy as np
 import os
 import torch
-import torchnet as tnt
-import torch.nn as nn
 import matplotlib
 
 # Weird behavior: loading twice in cell appears to remove an elsewise occuring error.
@@ -21,25 +19,18 @@ np.random.seed(42)
 torch.cuda.empty_cache()
 
 # We import from other files
-from utils.useful_functions import *
-from data_loader.loader import *
-from utils.load_las_data import open_metadata_dataframe
-from model.loss_functions import *
-from model.accuracy import *
-from em_gamma.get_gamma_parameters_em import *
-from model.model import PointNet
+from config import args
+from utils.useful_functions import create_new_experiment_folder, print_stats
+from data_loader.loader import normalize_cloud_data
 from utils.point_cloud_classifier import PointCloudClassifier
 from model.infer_utils import (
     divide_parcel_las_and_get_disk_centers,
     extract_points_within_disk,
     create_geotiff_raster,
 )
-from utils.reproject_to_2d_and_predict_plot_coverage import project_to_2d
 
 
-from config import args
-
-args.z_max = 24.14  # the TRAINING args should be loaded !
+args.z_max = 24.14  # the TRAINING args should be loaded from stats.csv/txt...
 
 
 print("Everything is imported")
@@ -107,7 +98,7 @@ for las_filename in las_filenames:
             # compute pointwise prediction
             pred_pointwise, _ = PCC.run(model, plot_points_tensor)
 
-            # pred_pointwise was permuted from (scores_nb, pts_nb) to (pts_nb, scores_nb) for some reasons at the end of PCC.run
+            # pred_pointwise was permuted from (N_scores, N_points) to (N_points, N_scores) for some reasons at the end of PCC.run
             pred_pointwise = pred_pointwise.permute(1, 0)
 
             las_id = las_filename.split(".")[0]
