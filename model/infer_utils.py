@@ -267,7 +267,7 @@ def create_geotiff_raster(
     )
 
     # we get hard rasters for medium veg, creating a fourth canal
-    image_med_veg_hard = image_med_veg > 0.5  # TODO: define a bette strategy
+    image_med_veg_hard = 1.0 * (img_to_write[1] > 0.5)  # TODO: define a bette strategy
     img_to_write = np.concatenate(
         [img_to_write, [image_med_veg_hard]], 0
     )  # (nb_canals, 32, 32)

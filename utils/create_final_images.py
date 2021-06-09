@@ -402,6 +402,7 @@ def infer_and_project_on_rasters(current_cloud, args, pred_cloud):
      image_low_veg, image_med_veg, image_high_veg
     """
     xy = current_cloud[:2, :]
+    # center and normalize between 0 and 1 using MIN and MAX of points (instead of plot center  and width/height !)
     xy = torch.floor(
         (xy - torch.min(xy, dim=1).values.view(2, 1).expand_as(xy))
         / (torch.max(xy, dim=1).values - torch.min(xy, dim=1).values + 0.0001)
