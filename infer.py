@@ -65,9 +65,9 @@ for las_filename in las_filenames:
     )
 
     # TODO : remove this debug condition
-    if args.mode == "DEV":
-        if las_filename != "004000715-5-18.las":  # "004009611-11-13.las":
-            continue
+    # if args.mode == "DEV":
+    #     if las_filename != "004000715-5-18.las":  # "004009611-11-13.las":
+    #         continue
 
     # her we divide all parcels into plots
     grid_pixel_xy_centers, points_nparray = divide_parcel_las_and_get_disk_centers(
