@@ -40,7 +40,7 @@ parser.add_argument('--n_class', default=4, type=int,
                     help="Size of the model output vector. In our case 4 - different vegetation coverage types")
 parser.add_argument('--input_feats', default='xyzrgbnir', type=str,
                     help="Point features that we keep. in this code, we keep them all. permuting those letters will break everything. To be modified")
-parser.add_argument('--subsample_size', default=4096, type=int, help="Subsample cloud size")
+parser.add_argument('--subsample_size', default=10000, type=int, help="Subsample cloud size")
 parser.add_argument('--diam_pix', default=32, type=int,
                     help="Size of the output stratum raster (its diameter in pixels)")
 parser.add_argument('--m', default=1, type=float,
