@@ -119,8 +119,10 @@ def open_metadata_dataframe(args, pl_id_to_keep):
     # Keep metadata for placettes we are considering
     df_gt = df_gt[df_gt["Name"].isin(pl_id_to_keep)]
 
-    # TODO : this is ADM based on ASP definition
-    # TODO: correct this !
+    # Correct Soil value to have
+    df_gt["COUV_SOL"] = 100 - df_gt["COUV_BASSE"]
+
+    # his is ADM based on ASP definition - NOT USED at the moment
     if "ADM" not in df_gt:
         df_gt["ADM_BASSE"] = df_gt["COUV_BASSE"] - df_gt["NON_ACC_1"]
         df_gt["ADM_INTER"] = df_gt["COUV_HAUTE"] - df_gt["NON_ACC_2"]
