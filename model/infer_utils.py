@@ -266,6 +266,7 @@ def create_geotiff_raster(
         image_high_veg,
     )
 
+    # TODO: edit the comments
     # we get hard rasters for medium veg, creating a fourth canal
     image_med_veg_hard = 1.0 * (img_to_write[1] > 0.5)  # TODO: define a bette strategy
     img_to_write = np.concatenate(
@@ -275,8 +276,12 @@ def create_geotiff_raster(
     if add_weights_band:
         # Currently: linear variation with distance to center
 
-        x = (np.arange(-16, 16, 1) + 0.5) / 32
-        y = (np.arange(-16, 16, 1) + 0.5) / 32
+        x = (
+            np.arange(-args.diam_pix // 2, args.diam_pix // 2, 1) + 0.5
+        ) / args.diam_pix
+        y = (
+            np.arange(-args.diam_pix // 2, args.diam_pix // 2, 1) + 0.5
+        ) / args.diam_pix
         xx, yy = np.meshgrid(x, y, sparse=True)
         image_weights = 1 - np.sqrt(xx ** 2 + yy ** 2)
 

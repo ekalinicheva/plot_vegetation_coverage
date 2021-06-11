@@ -96,6 +96,7 @@ for las_filename in las_filenames:
             plot_points_tensor = torch.from_numpy(plots_point_nparray)
 
             # compute pointwise prediction
+            # TODO: upsample points before predictions
             pred_pointwise, _ = PCC.run(model, plot_points_tensor)
 
             # pred_pointwise was permuted from (N_scores, N_points) to (N_points, N_scores) for some reasons at the end of PCC.run

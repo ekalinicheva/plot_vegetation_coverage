@@ -82,13 +82,15 @@ def normalize_cloud_data(cloud_data, args):
 
     cloud_data[0] = (cloud_data[0] - xmean) / 10  # x
     cloud_data[1] = (cloud_data[1] - ymean) / 10  # y
-    cloud_data[2] = (cloud_data[2]) / args.z_max  # z
+    cloud_data[2] = (cloud_data[2]) / args.z_max  # z with norm50cm applied
 
     colors_max = 65536
     cloud_data[3:7] = cloud_data[3:7] / colors_max
     int_max = 32768
     cloud_data[7] = cloud_data[7] / int_max
     cloud_data[8] = (cloud_data[8] - 1) / (7 - 1)
+
+    cloud_data[9] = (cloud_data[9]) / args.z_max  # z without norm50cm applied
     return cloud_data
 
 

@@ -30,7 +30,7 @@ def load_all_las_from_folder(args):
         shuffle(las_files)
         las_files = las_files[: (5 * 5)]  # 2 plot by fold
 
-    all_points_nparray = np.empty((0, 9))
+    all_points_nparray = np.empty((0, args.nb_feats_for_train))
     for las_file in las_files:
 
         # Parse LAS files
@@ -68,20 +68,15 @@ def load_single_las(las_folder, las_file):
     if las_file == "Releve_Lidar_F39.las":
         points_placette = points_placette[points_placette[:, -2] < 20000]
 
-    # # We directly substract z_min at local level
-    # xyz = points_placette[:, :3]
-    # knn = NearestNeighbors(500, algorithm="kd_tree").fit(xyz[:, :2])
-    # _, neigh = knn.radius_neighbors(xyz[:, :2], 0.5)
-    # z = xyz[:, 2]
-    # zmin_neigh = []
-    # for n in range(
-    #     len(z)
-    # ):  # challenging to make it work without a loop as neigh has different length for each point
-    #     zmin_neigh.append(np.min(z[neigh[n]]))
-
-    # TODO: simpler normalization here with the min z of the plot
+    # Add a feature:min-normalized using min-z of the plot
     zmin_plot = np.min(points_placette[:, 2])
-    points_placette[:, 2] = points_placette[:, 2] - zmin_plot
+    points_placette = np.append(
+        points_placette, points_placette[:, 2:3] - zmin_plot, axis=1
+    )
+
+    # # We directly substract z_min at local level
+    points_placette = normalize_z_with_minz_in_50cm_radius(points_placette)
+    # points_placette = normalize_z_with_approximate_DTM(points_placette)
 
     # get the average
     xy_averages = [
@@ -89,6 +84,25 @@ def load_single_las(las_folder, las_file):
         np.mean(y_las) / 100,
     ]
     return points_placette, xy_averages
+
+
+def normalize_z_with_minz_in_50cm_radius(points_placette):
+    # # We directly substract z_min at local level
+    xyz = points_placette[:, :3]
+    knn = NearestNeighbors(500, algorithm="kd_tree").fit(xyz[:, :2])
+    _, neigh = knn.radius_neighbors(xyz[:, :2], 0.5)
+    z = xyz[:, 2]
+    zmin_neigh = []
+    for n in range(
+        len(z)
+    ):  # challenging to make it work without a loop as neigh has different length for each point
+        zmin_neigh.append(np.min(z[neigh[n]]))
+    points_placette[:, 2] = points_placette[:, 2] - zmin_neigh
+    return points_placette
+
+
+def normalize_z_with_approximate_DTM(points_placette, args):
+    points_placette
 
 
 def open_metadata_dataframe(args, pl_id_to_keep):

@@ -33,15 +33,16 @@ parser.add_argument('--stats_path', default=None, help="(Created on the fly) Pat
 parser.add_argument('--stats_file', default=None, help="(Created on the fly) Path to stats file including losses")
 
 # TODO: replace this with an experiment folder
-parser.add_argument('--trained_model_path', default=os.path.join(repo_absolute_path, "experiments/RESULTS_3_strata/only_stratum/PROD/learning/2021-05-31_11h40m21s/model_ss_4096_dp_32_fold_1.pt"), help="Path to .pt file output by torch.save(net, path)")
+parser.add_argument('--trained_model_path', default=os.path.join(repo_absolute_path, "experiments/RESULTS_3_strata/only_stratum/PROD/learning/2021-06-10_17h24m51s/model_ss_10000_dp_32_fold_1.pt"), help="Path to .pt file output by torch.save(net, path)")
 
 # Model Parameters
 parser.add_argument('--n_class', default=4, type=int,
                     help="Size of the model output vector. In our case 4 - different vegetation coverage types")
 parser.add_argument('--input_feats', default='xyzrgbnir', type=str,
                     help="Point features that we keep. in this code, we keep them all. permuting those letters will break everything. To be modified")
+parser.add_argument('--nb_feats_for_train', default=10, type=int, help="Nb of feat given to model")
 parser.add_argument('--subsample_size', default=10000, type=int, help="Subsample cloud size")
-parser.add_argument('--diam_pix', default=32, type=int,
+parser.add_argument('--diam_pix', default=20, type=int,
                     help="Size of the output stratum raster (its diameter in pixels)")
 parser.add_argument('--m', default=1, type=float,
                     help="Loss regularization. The weight of the negative loglikelihood loss in the total loss")
@@ -55,7 +56,6 @@ parser.add_argument('--nb_stratum', default=3, type=int,
                     help="[2, 3] Number of vegetation stratum that we compute 2 - ground level + medium level; 3 - ground level + medium level + high level")
 parser.add_argument('--ECM_ite_max', default=5, type=int, help='Max number of EVM iteration')
 parser.add_argument('--NR_ite_max', default=10, type=int, help='Max number of Netwon-Rachson iteration')
-
 parser.add_argument('--z_max', default=None, type=float, help="Max (radius-normalized) altitude of points in plots, calculated on the fly.")
 
 # Network Parameters
