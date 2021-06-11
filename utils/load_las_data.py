@@ -68,17 +68,22 @@ def load_single_las(las_folder, las_file):
     if las_file == "Releve_Lidar_F39.las":
         points_placette = points_placette[points_placette[:, -2] < 20000]
 
-    # We directly substract z_min at local level
-    xyz = points_placette[:, :3]
-    knn = NearestNeighbors(500, algorithm="kd_tree").fit(xyz[:, :2])
-    _, neigh = knn.radius_neighbors(xyz[:, :2], 0.5)
-    z = xyz[:, 2]
-    zmin_neigh = []
-    for n in range(
-        len(z)
-    ):  # challenging to make it work without a loop as neigh has different length for each point
-        zmin_neigh.append(np.min(z[neigh[n]]))
-    points_placette[:, 2] = points_placette[:, 2] - zmin_neigh
+    # # We directly substract z_min at local level
+    # xyz = points_placette[:, :3]
+    # knn = NearestNeighbors(500, algorithm="kd_tree").fit(xyz[:, :2])
+    # _, neigh = knn.radius_neighbors(xyz[:, :2], 0.5)
+    # z = xyz[:, 2]
+    # zmin_neigh = []
+    # for n in range(
+    #     len(z)
+    # ):  # challenging to make it work without a loop as neigh has different length for each point
+    #     zmin_neigh.append(np.min(z[neigh[n]]))
+
+    # TODO: simpler normalization here with the min z of the plot
+    zmin_plot = np.min(points_placette[:, 2])
+    points_placette[:, 2] = points_placette[:, 2] - zmin_plot
+
+    # get the average
     xy_averages = [
         np.mean(x_las) / 100,
         np.mean(y_las) / 100,
