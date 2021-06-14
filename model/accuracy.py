@@ -3,12 +3,35 @@ from utils.useful_functions import print_stats
 import pandas as pd
 
 # values should be in [0,1] since we deal with ratios of coverage
-bins_borders = np.array([5, 17.5, 29, 41.5, 58.5, 71, 82.5, 95, 101]) / 100
-bins_centers = np.array([0, 10, 25, 33, 50, 67, 75, 90, 100]) / 100
-bb_ = [0] + bins_borders.tolist()
+bins_borders = np.round(
+    np.array([0.05, 0.175, 0.29, 0.415, 0.585, 0.71, 0.825, 0.95, 1.01]), 3
+)
+bins_centers = np.round(
+    np.array([0.0, 0.10, 0.25, 0.33, 0.50, 0.67, 0.75, 0.90, 1.00]), 3
+)
+bb_ = [0] + bins_borders.tolist()  # add the lowest border of class 0 to borders
 center_to_border_dict = {
     center: borders for center, borders in zip(bins_centers, zip(bb_[:-1], bb_[1:]))
 }
+
+# check that borders are at equal distance of centers of surrounding classes
+assert all(
+    x == y
+    for x, y in zip(
+        list(
+            map(
+                lambda x: np.round(abs(x[0] - x[1]), 3),
+                zip(bins_borders[:-1], bins_centers[:-1]),
+            )
+        ),
+        list(
+            map(
+                lambda x: np.round(abs(x[0] - x[1]), 3),
+                zip(bins_borders, bins_centers[1:]),
+            )
+        ),
+    )
+)
 
 
 def compute_mae2(y_pred, y):
