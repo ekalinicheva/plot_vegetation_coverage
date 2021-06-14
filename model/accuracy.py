@@ -34,9 +34,10 @@ assert all(
 )
 
 # TODO: use this in metric computation
-def compute_mae(y_pred, y):
+def compute_mae(y_pred, y, center_to_border_dict=None):
     """
     Returns the absolute distance of predicted value to ground truth.
+    Args center_to_border_dict is for compatibility issues in quanfification error analysis.
     """
     return abs(y_pred - y)
 
