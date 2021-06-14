@@ -12,10 +12,13 @@ from model.accuracy import (
     compute_accuracy,
     compute_accuracy2,
 )  # do not "import *"
+from functools import partial
+
 
 experiment_rel_path = "./experiments/RESULTS_3_strata/only_stratum/PROD/learning/2021-05-31_11h40m21s/PCC_inference_all_placettes.csv"
 
 # here everything is in % for clarity of plot
+# TODO: go from % to ratio to avoid inconsistency
 bins_borders = np.array([5, 17.5, 29, 41.5, 58.5, 71, 82.5, 95, 101])
 bins_centers = np.array([0, 10, 25, 33, 50, 67, 75, 90, 100])
 assert list(
@@ -25,6 +28,24 @@ bb = [0] + bins_borders.tolist()
 center_to_border_dict = {
     center: borders for center, borders in zip(bins_centers, zip(bb[:-1], bb[1:]))
 }
+
+
+# adapt error functions to %
+compute_accuracy2_perc = partial(
+    compute_accuracy2, margin=10, center_to_border_dict=center_to_border_dict
+)
+compute_accuracy_perc = partial(
+    compute_accuracy, center_to_border_dict=center_to_border_dict
+)
+compute_mae2_perc = partial(compute_mae2, center_to_border_dict=center_to_border_dict)
+compute_mae_perc = partial(compute_mae)  # to be coherent in naming convention here
+
+error_funcs = [
+    compute_mae_perc,
+    compute_mae2_perc,
+    compute_accuracy_perc,
+    compute_accuracy2_perc,
+]
 
 
 def study_quantification_error_1(df, output_fig_path=""):
@@ -163,7 +184,7 @@ def compute_expected_error_based_on_measurement_error_stdev(
         expected_E_list.append(expected_E_in_class)
     expected_E = np.mean(expected_E_list).round(2)
     print(
-        f"Expected indicator ({error_func.__name__}) with evaluation error of stdev={stdev_of_error} is {expected_E}"
+        f"Expected indicator ({error_func.func.__name__}) with evaluation error of stdev={stdev_of_error} is {expected_E}"
     )
     return expected_E
 
@@ -172,12 +193,7 @@ def get_all_expected_error_based_on_measurement_error_stdev(
     stdev_of_error_list=[5, 10, 15, 20],
     expected_errors_path="",
 ):
-    error_funcs = [
-        compute_mae,
-        compute_mae2,
-        compute_accuracy,
-        compute_accuracy2,
-    ]
+    global error_funcs
     error_funcs_names = ["mae", "mae2", "acc", "acc2"]
     expected_Es = np.empty((len(error_funcs), len(stdev_of_error_list)))
     for idx_stdev, stdev_of_error in enumerate(stdev_of_error_list):
