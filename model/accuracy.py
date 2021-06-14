@@ -40,7 +40,7 @@ def calculate_performance_indicators(df):
     df["error_veg_b"] = (df["pred_veg_b"] - df["vt_veg_b"]).abs()
     df["error_veg_moy"] = (df["pred_veg_moy"] - df["vt_veg_moy"]).abs()
     df["error_veg_h"] = (df["pred_veg_h"] - df["vt_veg_h"]).abs()
-    df["error_veg_b_and_moy"] = (df["error_veg_b"] + df["error_veg_moy"]) / 2
+    df["error_veg_b_and_moy"] = (df["error_veg_b"] + df["error_veg_moy"]) / 2.0
 
     # MAE2 errors
     df["error2_veg_b"] = df.apply(
@@ -113,11 +113,11 @@ def stats_for_all_folds(
             stats_file,
             "Mean Train Loss "
             + str(mean_cross_fold_train[0])
-            + " Loss abs "
+            + " Loss abs (MAE) "
             + str(mean_cross_fold_train[1])
             + " Loss log "
             + str(mean_cross_fold_train[2])
-            + " Loss ADM "
+            + " Loss admissibility "
             + str(mean_cross_fold_train[3]),
             print_to_console=True,
         )
@@ -131,20 +131,21 @@ def stats_for_all_folds(
                 np.mean(loss_test_abs_ml_list),
                 np.mean(loss_test_adm_list),
             )
+            mean_cross_fold_test = np.round(mean_cross_fold_test, 3)
 
             print_stats(
                 stats_file,
                 "Mean Test Loss "
                 + str(mean_cross_fold_test[0])
-                + " Loss abs "
+                + " Loss abs (MAE) "
                 + str(mean_cross_fold_test[1])
                 + " Loss log "
                 + str(mean_cross_fold_test[2])
-                + " Loss abs GL "
+                + "\nLoss abs Vb "
                 + str(mean_cross_fold_test[3])
-                + " Loss abs ML "
+                + " Loss abs Vm "
                 + str(mean_cross_fold_test[4])
-                + " Loss ADM "
+                + " Loss Admissibility "
                 + str(mean_cross_fold_test[5]),
                 print_to_console=True,
             )
@@ -159,22 +160,23 @@ def stats_for_all_folds(
                 np.mean(loss_test_abs_hl_list),
                 np.mean(loss_test_adm_list),
             )
+            mean_cross_fold_test = np.round(mean_cross_fold_test, 3)
 
             print_stats(
                 stats_file,
                 "Mean Test Loss "
                 + str(mean_cross_fold_test[0])
-                + " Loss abs "
+                + " Loss abs (MAE) "
                 + str(mean_cross_fold_test[1])
                 + " Loss log "
                 + str(mean_cross_fold_test[2])
-                + " Loss abs GL "
+                + "\nLoss abs Vb "
                 + str(mean_cross_fold_test[3])
-                + " Loss abs ML "
+                + " Loss abs Vm "
                 + str(mean_cross_fold_test[4])
-                + " Loss abs HL "
+                + " Loss abs Vh "
                 + str(mean_cross_fold_test[5])
-                + " Loss ADM "
+                + " Loss admissibility "
                 + str(mean_cross_fold_test[6]),
                 print_to_console=True,
             )
@@ -209,40 +211,40 @@ def stats_for_all_folds(
                 stats_file,
                 "Mean Test Loss "
                 + str(mean_cross_fold_test[0])
-                + " Loss abs "
+                + " Loss abs (MAE) "
                 + str(mean_cross_fold_test[1])
                 + " Loss log "
                 + str(mean_cross_fold_test[2])
-                + " Loss abs GL "
+                + " Loss abs Vb "
                 + str(mean_cross_fold_test[3])
-                + " Loss abs ML "
+                + " Loss abs Vm "
                 + str(mean_cross_fold_test[4]),
                 print_to_console=True,
             )
 
         else:  # 3 stratum
             mean_cross_fold_test = (
-                np.round(np.mean(loss_test_list), 4),
-                np.round(np.mean(loss_test_abs_list), 4),
-                np.round(np.mean(loss_test_log_list), 4),
-                np.round(np.mean(loss_test_abs_gl_list), 4),
-                np.round(np.mean(loss_test_abs_ml_list), 4),
-                np.round(np.mean(loss_test_abs_hl_list), 4),
+                np.round(np.mean(loss_test_list), 3),
+                np.round(np.mean(loss_test_abs_list), 3),
+                np.round(np.mean(loss_test_log_list), 3),
+                np.round(np.mean(loss_test_abs_gl_list), 3),
+                np.round(np.mean(loss_test_abs_ml_list), 3),
+                np.round(np.mean(loss_test_abs_hl_list), 3),
             )
 
             print_stats(
                 stats_file,
                 "Mean Test Loss "
                 + str(mean_cross_fold_test[0])
-                + " Loss abs "
+                + " Loss abs (MAE) "
                 + str(mean_cross_fold_test[1])
                 + " Loss log "
                 + str(mean_cross_fold_test[2])
-                + " Loss abs GL "
+                + "\nLoss abs Vb "
                 + str(mean_cross_fold_test[3])
-                + " Loss abs ML "
+                + " Loss abs Vm "
                 + str(mean_cross_fold_test[4])
-                + " Loss abs HL "
+                + " Loss abs Vh "
                 + str(mean_cross_fold_test[5]),
                 print_to_console=True,
             )
@@ -287,7 +289,7 @@ def stats_per_fold(
             loss_test_abs_hl_list,
             loss_test_adm_list,
         ) = all_folds_loss_test_lists
-
+    final_train_losses_list = np.round(final_train_losses_list, 3)
     loss_train, loss_train_abs, loss_train_log, loss_train_adm = final_train_losses_list
     (
         loss_test,
@@ -297,7 +299,7 @@ def stats_per_fold(
         loss_test_abs_ml,
         loss_test_abs_hl,
         loss_test_adm,
-    ) = final_test_losses_list
+    ) = np.round(final_test_losses_list, 3)
 
     # Save all loss stats
     print_stats(
@@ -319,7 +321,7 @@ def stats_per_fold(
             + str(fold_id)
             + " Test Loss "
             + str(loss_test)
-            + " Loss abs "
+            + " Loss abs (MAE) "
             + str(loss_test_abs)
             + " Loss log "
             + str(loss_test_log)
@@ -403,12 +405,15 @@ def write_to_writer(writer, args, i_epoch, list_with_losses, train):
     TRAINCOLOR = "\033[100m"
     NORMALCOLOR = "\033[0m"
 
+    # round losses
+    list_with_losses = np.round(list_with_losses, 3)
+
     if train:
         loss_train, loss_train_abs, loss_train_log, loss_train_adm = list_with_losses
         if args.adm:
             print(
                 TRAINCOLOR
-                + "Epoch %3d -> Train Loss: %1.4f Train Loss Abs: %1.4f Train Loss Log: %1.4f Train Loss Adm: %1.4f"
+                + "Epoch %3d -> Train Loss: %1.4f Train Loss Abs (MAE): %1.4f Train Loss Log: %1.4f Train Loss Adm: %1.4f"
                 % (i_epoch, loss_train, loss_train_abs, loss_train_log, loss_train_adm)
                 + NORMALCOLOR
             )
@@ -416,7 +421,7 @@ def write_to_writer(writer, args, i_epoch, list_with_losses, train):
         else:
             print(
                 TRAINCOLOR
-                + "Epoch %3d -> Train Loss: %1.4f Train Loss Abs: %1.4f Train Loss Log: %1.4f"
+                + "Epoch %3d -> Train Loss: %1.4f Train Loss Abs (MAE): %1.4f Train Loss Log: %1.4f"
                 % (i_epoch, loss_train, loss_train_abs, loss_train_log)
                 + NORMALCOLOR
             )
@@ -437,7 +442,7 @@ def write_to_writer(writer, args, i_epoch, list_with_losses, train):
         if args.adm:
             print(
                 TESTCOLOR
-                + "Test Loss: %1.4f Test Loss Abs: %1.4f Test Loss Log: %1.4f Test Loss Adm: %1.4f"
+                + "Test Loss: %1.4f Test Loss Abs (MAE): %1.4f Test Loss Log: %1.4f Test Loss Adm: %1.4f"
                 % (loss_test, loss_test_abs, loss_test_log, loss_test_adm)
                 + NORMALCOLOR
             )
@@ -445,7 +450,7 @@ def write_to_writer(writer, args, i_epoch, list_with_losses, train):
         else:
             print(
                 TESTCOLOR
-                + "Test Loss: %1.4f Test Loss Abs: %1.4f Test Loss Log: %1.4f"
+                + "Test Loss: %1.4f Test Loss Abs (MAE): %1.4f Test Loss Log: %1.4f"
                 % (loss_test, loss_test_abs, loss_test_log)
                 + NORMALCOLOR
             )
