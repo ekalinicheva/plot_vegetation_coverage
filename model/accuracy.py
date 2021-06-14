@@ -11,17 +11,20 @@ center_to_border_dict = {
 }
 
 
-def compute_mae2(pred, vt):
-    borders = center_to_border_dict[vt]
-    if borders[0] <= pred <= borders[1]:
+def compute_mae2(y_pred, y):
+    """
+    Returns the absolute distance of predicted value to groun truth class boundaries.
+    """
+    borders = center_to_border_dict[y]
+    if borders[0] <= y_pred <= borders[1]:
         return 0.0
     else:
-        return min(abs(borders[0] - pred), abs(borders[1] - pred))
+        return min(abs(borders[0] - y_pred), abs(borders[1] - y_pred))
 
 
-def is_accurate_with_margin(v, bounds, margin=0.1):
+def is_accurate_with_margin(y_pred, bounds, margin=0.1):
     """Margin should be in [0,1] since we deal with ratios of coverage"""
-    if bounds[0] - margin <= v <= bounds[1] + v:
+    if (bounds[0] - margin) <= y_pred <= (bounds[1] + margin):
         return 1
     else:
         return 0
@@ -29,8 +32,12 @@ def is_accurate_with_margin(v, bounds, margin=0.1):
 
 # we derive indicators of performance
 def calculate_performance_indicators(df):
-    """
-    All values are ratio between 0 and 1.
+    """Compute indicators of performances from df of predictions and GT:
+    - MAE: absolute distance of predicted value to ground truth
+    - Accuracy: 1 if predicted value falls within class boundaries
+    - MAE2: absolute distance of predicted value to ground truth class boundaries.
+    - Accuracy2: 1 if predicted value falls within class boundaries + a margin of 10%
+    Note: Predicted and ground truths coverage values are ratios between 0 and 1.
     """
     # round to 3rd to avoid artefacts like 0.8999999 for 0.9 as key of dict
     df[["vt_veg_b", "vt_veg_moy", "vt_veg_h"]] = (
@@ -40,7 +47,13 @@ def calculate_performance_indicators(df):
     df["error_veg_b"] = (df["pred_veg_b"] - df["vt_veg_b"]).abs()
     df["error_veg_moy"] = (df["pred_veg_moy"] - df["vt_veg_moy"]).abs()
     df["error_veg_h"] = (df["pred_veg_h"] - df["vt_veg_h"]).abs()
-    df["error_veg_b_and_moy"] = (df["error_veg_b"] + df["error_veg_moy"]) / 2.0
+    df["error_veg_b_and_moy"] = df[["error_veg_b", "error_veg_moy"]].mean(axis=1)
+    # Accuracy
+    cutter = lambda col: pd.cut(col, [-1] + bins_borders.tolist(), labels=bins_centers)
+    df["acc_veg_b"] = (cutter(df["pred_veg_b"]) == df["vt_veg_b"]) * 1
+    df["acc_veg_moy"] = (cutter(df["pred_veg_moy"]) == df["vt_veg_moy"]) * 1
+    df["acc_veg_h"] = (cutter(df["pred_veg_h"]) == df["vt_veg_h"]) * 1
+    df["acc_veg_b_and_moy"] = df[["acc_veg_b", "acc_veg_moy"]].mean(axis=1)
 
     # MAE2 errors
     df["error2_veg_b"] = df.apply(
@@ -52,32 +65,29 @@ def calculate_performance_indicators(df):
     df["error2_veg_h"] = df.apply(
         lambda x: compute_mae2(x.pred_veg_h, x.vt_veg_h), axis=1
     )
-    df["error2_veg_b_and_moy"] = (df["error2_veg_b"] + df["error2_veg_moy"]) / 2
-
+    df["error2_veg_b_and_moy"] = df[["error2_veg_b", "error2_veg_moy"]].mean(axis=1)
     # mae2_b = df["error2_veg_b"].mean().round(2)
     # mae2_moy = df["error2_veg_moy"].mean().round(2)
     # mae2_h = df["error2_veg_h"].mean().round(2)
     # mae2_b, mae2_moy, mae2_h
 
-    # Accuracy
-    cutter = lambda col: pd.cut(col, [-1] + bins_borders.tolist(), labels=bins_centers)
-    df["acc_veg_b"] = (cutter(df["pred_veg_b"]) == df["vt_veg_b"]) * 1
-    df["acc_veg_moy"] = (cutter(df["pred_veg_moy"]) == df["vt_veg_moy"]) * 1
-    df["acc_veg_h"] = (cutter(df["pred_veg_h"]) == df["vt_veg_h"]) * 1
-    df["acc_veg_b_and_moy"] = (df["acc_veg_b"] + df["acc_veg_moy"]) / 2
-    # accuracy 2
-    bound_value = lambda c: center_to_border_dict[c]
+    # Accuracy 2
+    get_class_bounds = lambda c: center_to_border_dict[c]
     df["acc2_veg_b"] = df.apply(
-        lambda x: is_accurate_with_margin(x.pred_veg_b, bound_value(x.vt_veg_b)), axis=1
+        lambda x: is_accurate_with_margin(x.pred_veg_b, get_class_bounds(x.vt_veg_b)),
+        axis=1,
     )
     df["acc2_veg_moy"] = df.apply(
-        lambda x: is_accurate_with_margin(x.pred_veg_moy, bound_value(x.vt_veg_moy)),
+        lambda x: is_accurate_with_margin(
+            x.pred_veg_moy, get_class_bounds(x.vt_veg_moy)
+        ),
         axis=1,
     )
     df["acc2_veg_h"] = df.apply(
-        lambda x: is_accurate_with_margin(x.pred_veg_h, bound_value(x.vt_veg_h)), axis=1
+        lambda x: is_accurate_with_margin(x.pred_veg_h, get_class_bounds(x.vt_veg_h)),
+        axis=1,
     )
-    df["acc2_veg_b_and_moy"] = (df["acc2_veg_b"] + df["acc2_veg_moy"]) / 2
+    df["acc2_veg_b_and_moy"] = df[["acc2_veg_b", "acc2_veg_moy"]].mean(axis=1)
 
     return df
 

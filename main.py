@@ -186,6 +186,7 @@ def main():
     )
 
 
+# TODO
 # Formate the stats.txt fil into a human- & computer-readable csv
 
 
