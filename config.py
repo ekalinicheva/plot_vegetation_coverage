@@ -44,12 +44,12 @@ parser.add_argument('--nb_feats_for_train', default=10, type=int, help="Nb of fe
 parser.add_argument('--subsample_size', default=10000, type=int, help="Subsample cloud size")
 parser.add_argument('--diam_pix', default=20, type=int,
                     help="Size of the output stratum raster (its diameter in pixels)")
-parser.add_argument('--m', default=0.3, type=float,
+parser.add_argument('--m', default=1., type=float,
                     help="Loss regularization. The weight of the negative loglikelihood loss in the total loss")
 parser.add_argument('--norm_ground', default=True, type=bool,
                     help="Whether we normalize low vegetation and bare soil values, so LV+BS=1 (True) or we keep unmodified LV value (False) (recommended)")
 parser.add_argument('--ent', default=True, type=bool, help="Whether we add antropy loss or not")
-parser.add_argument('--e', default=0.05, type=float,
+parser.add_argument('--e', default=0.2, type=float,
                         help="Loss regularization for entropy. The weight of the entropy loss in the total loss")
 parser.add_argument('--adm', default=False, type=bool, help="Whether we compute admissibility or not")
 parser.add_argument('--nb_stratum', default=3, type=int,
