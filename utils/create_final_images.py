@@ -116,6 +116,8 @@ def visualize(
     text_pred_vs_gt=None,
     scores=None,
     image_high_veg=None,
+    predictions=["Vb", "soil", "Vm", "Vh", "Adm"],
+    gt=["Vb", "soil", "Vm", "Vh", "Adm"],
 ):
 
     if image_low_veg.ndim == 3:
@@ -159,7 +161,7 @@ def visualize(
     ]  # first color is brown, second is grey, last is green
     cm = colors.LinearSegmentedColormap.from_list("Custom", color_grad, N=100)
     ax2.imshow(image_low_veg, cmap=cm, vmin=0, vmax=1)
-    ax2.set_title("Low vegetation coverage")
+    ax2.set_title(f"Low veg. = {predictions[0]:.0%} (gt={gt[0]:.0%})")
     ax2.tick_params(
         axis="both",  # changes apply to both axis
         which="both",  # both major and minor ticks are affected
@@ -199,7 +201,7 @@ def visualize(
     color_grad = [(1, 1, 1), (0, 0, 1)]  # first color is white, last is blue
     cm = colors.LinearSegmentedColormap.from_list("Custom", color_grad, N=100)
     ax4.imshow(image_med_veg, cmap=cm, vmin=0, vmax=1)
-    ax4.set_title("Medium vegetation coverage")
+    ax4.set_title(f"Medium veg. = {predictions[2]:.0%} (gt={gt[2]:.0%})")
     ax4.tick_params(
         axis="both",  # changes apply to the x-axis
         which="both",  # both major and minor ticks are affected
@@ -234,7 +236,7 @@ def visualize(
             vmin=0,
             vmax=1,
         )
-        ax5.set_title("Strata membership")
+        ax5.set_title("Ground vs. non-ground")
         ax5.set_yticklabels([])
         ax5.set_xticklabels([])
 
@@ -244,7 +246,7 @@ def visualize(
         color_grad = [(1, 1, 1), (1, 0, 0)]  # first color is white, last is red
         cm = colors.LinearSegmentedColormap.from_list("Custom", color_grad, N=100)
         ax6.imshow(image_high_veg, cmap=cm, vmin=0, vmax=1)
-        ax6.set_title("High vegetation coverage")
+        ax6.set_title(f"High veg. = {predictions[3]:.0%} (gt={gt[3]:.0%})")
         ax6.tick_params(
             axis="both",  # changes apply to the x-axis
             which="both",  # both major and minor ticks are affected
@@ -319,29 +321,25 @@ def create_final_images(
             )
 
         if args.adm:
-            text_pred_vs_gt = (
-                "Pred "
-                + np.array2string(
-                    np.round(
-                        np.asarray(pred_pl[b].cpu().detach().numpy().reshape(-1)), 2
-                    )
-                )
-                + " ADM "
-                + str(adm[b].cpu().detach().numpy().round(2))
-                + " GT "
-                + np.array2string(gt.cpu().numpy()[0])
-            )  # prediction text
-        else:
-            text_pred_vs_gt = (
-                " Pred "
-                + np.array2string(
-                    np.round(
-                        np.asarray(pred_pl[b].cpu().detach().numpy().reshape(-1)), 2
-                    )
-                )
-                + " GT "
-                + np.array2string(gt.cpu().numpy()[0])
+            preds_nparray = np.round(
+                np.asarray(pred_pl[b].cpu().detach().numpy().reshape(-1)), 2
             )
+            adm_ = adm[b].cpu().detach().numpy().round(2)
+            gt_nparray = gt.cpu().numpy()[0]
+            text_pred_vs_gt = (
+                f"Coverage: Pred {preds_nparray[:4]} GT   {gt_nparray[:-1]}\n "
+                + f"Admissibility: Pred {adm_:.2f}  GT  {gt_nparray[-1]:.2f}"
+            )
+        else:
+            preds_nparray = np.round(
+                np.asarray(pred_pl[b].cpu().detach().numpy().reshape(-1)), 2
+            )
+            gt_nparray = gt.cpu().numpy()[0]
+            text_pred_vs_gt = (
+                f"Coverage: Pred {preds_nparray[:4]} GT   {gt_nparray[:-1]}\n "
+                + f"Admissibility (GT only) {gt_nparray[-1]:.2f}"
+            )
+
         text_pred_vs_gt = "LOW, soil, MID, HIGH \n" + text_pred_vs_gt
         print_stats(
             stats_file, plot_name + " " + text_pred_vs_gt, print_to_console=True
@@ -359,6 +357,8 @@ def create_final_images(
             text_pred_vs_gt=text_pred_vs_gt,
             scores=likelihood,
             image_high_veg=image_high_veg,
+            predictions=preds_nparray,
+            gt=gt_nparray,
         )
         if args.nb_stratum == 3:
             visualize_article(
