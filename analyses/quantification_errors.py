@@ -15,6 +15,9 @@ from model.accuracy import (
 from functools import partial
 
 
+##############################################################
+##############################################################
+
 experiment_rel_path = "./experiments/RESULTS_3_strata/only_stratum/PROD/learning/2021-05-31_11h40m21s/PCC_inference_all_placettes.csv"
 
 # here everything is in % for clarity of plot
@@ -28,8 +31,6 @@ bb = [0] + bins_borders.tolist()
 center_to_border_dict = {
     center: borders for center, borders in zip(bins_centers, zip(bb[:-1], bb[1:]))
 }
-
-
 # adapt error functions to %
 compute_accuracy2_perc = partial(
     compute_accuracy2, margin=10, center_to_border_dict=center_to_border_dict
@@ -42,10 +43,14 @@ compute_mae_perc = partial(compute_mae)  # to be coherent in naming convention h
 
 error_funcs = [
     compute_mae_perc,
-    compute_mae2_perc,
     compute_accuracy_perc,
+    compute_mae2_perc,
     compute_accuracy2_perc,
 ]
+error_funcs_names = ["mae", "acc", "mae2", "acc2"]
+
+##############################################################
+##############################################################
 
 
 def study_quantification_error_1(df, output_fig_path=""):
@@ -87,22 +92,24 @@ def study_quantification_error_1(df, output_fig_path=""):
     print(df_errors[["vt_veg_b", "vt_veg_moy", "vt_veg_h"]].describe().loc["mean"])
 
     # plot
-    plt.title("Quantification error depends on coverage value")
-    plt.plot(x, y_quant, label="coverage (discrete)")
-    plt.plot(x, x, label="coverage")
-    plt.plot(x, error, label="quantification noise")
-    plt.xlabel("Coverage (%)")
+    plt.title("L'erreur de quantification dépend de la valeur de couverture")
+    plt.plot(x, y_quant, label="Couverture (discretisée, %)")
+    plt.plot(x, x, label="Couverture (continue, %)")
+    plt.plot(x, error, label="Erreur de quantification (pp)")
+    plt.xlabel("Couverture (%)")
     plt.legend()
+    plt.tight_layout()
+
     # plt.show()
     if output_fig_path:
-        plt.savefig(output_fig_path, dpi=150)
+        plt.savefig(output_fig_path, dpi=150, transparent=True)
         print(f"Quantification error #1 plot saved to {output_fig_path}")
     return errors_by_class_mapper
 
 
 def describe_possible_measurement_error_distribution(
-    stdev_of_error_list=[5, 10, 15, 20],
-    above_error_list=[2.5, 5, 7.5, 10, 12.5, 15, 20, 25, 30],
+    stdev_of_error_list=[0.0000001, 5, 10, 12.5, 15, 20],
+    above_error_list=[2.5, 5, 7.5, 10, 12.5, 15, 20, 25, 30, 50],
     msrt_error_description_path="",
 ):
     """Output a csv of prob(|e|>value) for different stdev of measuremen errors"""
@@ -112,15 +119,16 @@ def describe_possible_measurement_error_distribution(
     for idx_stdev, stdev_of_error in enumerate(stdev_of_error_list):
         imprecision_generator = norm(0, stdev_of_error)
         for idx_above_error, above_error in enumerate(above_error_list):
-            prob = imprecision_generator.cdf(above_error) - imprecision_generator.cdf(
-                -above_error
+            prob = 1 - (
+                imprecision_generator.cdf(above_error)
+                - imprecision_generator.cdf(-above_error)
             )
             errors[idx_above_error, idx_stdev] = prob
 
     df_errors = pd.DataFrame(
         data=errors,
-        index=[f"|e|<{s}" for s in above_error_list],
-        columns=[f"stdev={s}" for s in stdev_of_error_list],
+        index=[f"|e|>{s}" for s in above_error_list],
+        columns=[f"σ={s:.1f}" for s in stdev_of_error_list],
     ).round(2)
     df_errors.to_csv(
         msrt_error_description_path,
@@ -149,11 +157,12 @@ def compute_expected_error_based_on_measurement_error_stdev(
         for real_coverage in np.arange(
             lower_b, upper_b + 0.1, 0.25
         ):  # we always include both border in this range
+            # print(f"Real coverage : {real_coverage}")
             E = 0.0
             W = 0.0
 
             # for different imprecision values
-            for imprecision_delta in np.arange(-33, 33, 0.25):
+            for imprecision_delta in np.arange(-50, 50, 0.25):
                 w = imprecision_generator.pdf(imprecision_delta)
                 coverage_with_imprecision = real_coverage + imprecision_delta
                 # we accept that 0% and 100% are more likely errors when close to them
@@ -190,11 +199,11 @@ def compute_expected_error_based_on_measurement_error_stdev(
 
 
 def get_all_expected_error_based_on_measurement_error_stdev(
-    stdev_of_error_list=[5, 10, 15, 20],
+    stdev_of_error_list=[0.0000001, 5, 10, 12.5, 15, 20],
     expected_errors_path="",
 ):
     global error_funcs
-    error_funcs_names = ["mae", "mae2", "acc", "acc2"]
+    global error_funcs_names
     expected_Es = np.empty((len(error_funcs), len(stdev_of_error_list)))
     for idx_stdev, stdev_of_error in enumerate(stdev_of_error_list):
         for idx_func, error_func in enumerate(error_funcs):
@@ -206,7 +215,7 @@ def get_all_expected_error_based_on_measurement_error_stdev(
     df_errors = pd.DataFrame(
         data=expected_Es,
         index=error_funcs_names,
-        columns=[f"stdev={s}" for s in stdev_of_error_list],
+        columns=[f"σ={s:.1f}" for s in stdev_of_error_list],
     ).round(2)
     df_errors.to_csv(
         expected_errors_path,
@@ -245,17 +254,14 @@ def main():
         analyses_path, "expected_errors_under_gaussian_msrt_error.csv"
     )
     # run anlayses
-    # study_quantification_error_1(df, output_fig_path=output_fig_path)
-    # describe_possible_measurement_error_distribution(
-    #     msrt_error_description_path=msrt_error_description_path
-    # )
-    # compute_expected_error_based_on_measurement_error_stdev(
-    #     stdev_of_error=10, error_func=compute_mae2
-    # )
-    get_all_expected_error_based_on_measurement_error_stdev(
-        stdev_of_error_list=[5, 10, 15, 20],
-        expected_errors_path=expected_errors_path,
+    study_quantification_error_1(df, output_fig_path=output_fig_path)
+    describe_possible_measurement_error_distribution(
+        msrt_error_description_path=msrt_error_description_path
     )
+
+    # get_all_expected_error_based_on_measurement_error_stdev(
+    #     expected_errors_path=expected_errors_path
+    # )
 
 
 if __name__ == "__main__":
