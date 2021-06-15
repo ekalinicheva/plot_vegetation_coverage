@@ -1,6 +1,6 @@
 import os
 import time
-
+from argparse import Namespace
 
 # Print stats to file
 def print_stats(stats_file, text, print_to_console=True):
@@ -54,3 +54,52 @@ def create_new_experiment_folder(args, infer_mode=False):
     args.results_path = results_path
     args.stats_path = stats_path
     args.stats_file = stats_file
+
+
+def fast_scandir(dirname):
+    """Get subfolders (abs paths). See https://stackoverflow.com/a/40347279/8086033"""
+    subfolders = [f.path for f in os.scandir(dirname) if f.is_dir()]
+    for dirname in list(subfolders):
+        subfolders.extend(fast_scandir(dirname))
+    return subfolders
+
+
+def get_args_from_prev_config(args):
+    """args is a Namespace created in config.py, and has a str argument args.use_prev_config"""
+    subfolders = fast_scandir(args.path)
+    prev_config_folder = [
+        f
+        for f in subfolders
+        if (args.use_prev_config in f) and (f.split("/")[-1] == args.use_prev_config)
+    ]
+    assert len(prev_config_folder) == 1  # is unique AND exists
+    prev_config_path = os.path.join(prev_config_folder[0], "stats.txt")
+    with open(prev_config_path) as f:
+        l = f.readline()
+        old_dict = vars(eval(l)).copy()
+    # Ignore System args
+    args_to_ignore = [
+        "mode",
+        "path",
+        "data_path",
+        "las_placettes_folder_path",
+        "las_parcelles_folder_path",
+        "gt_file_path",
+        "cuda",
+        "folds",
+        "coln_mapper_dict",
+        "create_final_images_bool",
+        "results_path",
+        "stats_path",
+        "stats_file",
+        "trained_model_path",
+        "use_prev_config",
+    ]
+    old_dict = {a: b for a, b in old_dict.items() if a not in args_to_ignore}
+    # Namespace -> dict -> update -> Namespace
+    new_dict = vars(args).copy()
+    new_dict.update(old_dict)
+    args = Namespace(**new_dict)
+    print(args)
+
+    return args
