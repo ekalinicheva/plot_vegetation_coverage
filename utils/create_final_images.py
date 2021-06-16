@@ -1,4 +1,7 @@
+import matplotlib
+from matplotlib.cm import ScalarMappable
 import matplotlib.pyplot as plt
+from matplotlib import cm
 from matplotlib import colors
 import matplotlib.gridspec as gridspec
 
@@ -20,16 +23,25 @@ def visualize_article(
 
     # Original point data
     ax1 = fig.add_subplot(gs[:, 0:2], projection="3d")
-    colors_ = cloud[3:6].numpy().transpose()
+    # NDVI calculation
+    r_infra = cloud[[3, 6]].numpy().transpose()
+    r = r_infra[:, 0]
+    infra = r_infra[:, 1]
+    ndvi = (infra - r) / (infra + r)
+    top = cm.get_cmap("Blues_r", 128)
+    bottom = cm.get_cmap("Greens", 128)
+    cmap = np.vstack((top(np.linspace(0, 1, 128)), bottom(np.linspace(0, 1, 128))))
+    cmap = colors.ListedColormap(cmap, name="GreensBlues")
     ax1.scatter(
         cloud[0],
         cloud[1],
         cloud[2] * args.z_max,
-        c=colors_,
-        vmin=0,
+        c=ndvi,
+        vmin=-1,
         vmax=1,
         s=10,
         alpha=1,
+        cmap=cmap,
     )
     ax1.auto_scale_xyz
     ax1.set_yticklabels([])
@@ -45,8 +57,8 @@ def visualize_article(
     # LV stratum raster
     ax2 = fig.add_subplot(gs[0, 2])
     color_grad = [(0.8, 0.4, 0.1), (0, 1, 0)]  # first color is white, last is green
-    cm = colors.LinearSegmentedColormap.from_list("Custom", color_grad, N=100)
-    ax2.imshow(image_soil, cmap=cm, vmin=0, vmax=1)
+    cmap = colors.LinearSegmentedColormap.from_list("Custom", color_grad, N=100)
+    ax2.imshow(image_soil, cmap=cmap, vmin=0, vmax=1)
     ax2.set_title("Ground level")
     ax2.tick_params(
         axis="both",  # changes apply to both axis
@@ -63,8 +75,8 @@ def visualize_article(
     # MV stratum raster
     ax3 = fig.add_subplot(gs[1, 2])
     color_grad = [(1, 1, 1), (0, 1, 0)]  # first color is white, last is green
-    cm = colors.LinearSegmentedColormap.from_list("Custom", color_grad, N=100)
-    ax3.imshow(image_med_veg, cmap=cm, vmin=0, vmax=1)
+    cmap = colors.LinearSegmentedColormap.from_list("Custom", color_grad, N=100)
+    ax3.imshow(image_med_veg, cmap=cmap, vmin=0, vmax=1)
     ax3.set_title("Medium level")
     ax3.tick_params(
         axis="both",  # changes apply to the x-axis
@@ -81,8 +93,8 @@ def visualize_article(
     # Plot high vegetation stratum
     ax4 = fig.add_subplot(gs[2, 2])
     color_grad = [(1, 1, 1), (0, 1, 0)]  # first color is white, last is red
-    cm = colors.LinearSegmentedColormap.from_list("Custom", color_grad, N=100)
-    ax4.imshow(image_high_veg, cmap=cm, vmin=0, vmax=1)
+    cmap = colors.LinearSegmentedColormap.from_list("Custom", color_grad, N=100)
+    ax4.imshow(image_high_veg, cmap=cmap, vmin=0, vmax=1)
     ax4.set_title("High level")
     ax4.tick_params(
         axis="both",  # changes apply to the x-axis
@@ -134,23 +146,38 @@ def visualize(
 
     # Original point data
     ax1 = fig.add_subplot(row, col, 1, projection="3d")
-    colors_ = cloud[3:6].numpy().transpose()
+
+    # NDVI calculation
+    r_infra = cloud[[3, 6]].numpy().transpose()
+    r = r_infra[:, 0]
+    infra = r_infra[:, 1]
+    ndvi = (infra - r) / (infra + r)
+    # cmap = [(207, 47, 88), (200, 200, 200), (0, 150, 0)]  # magenta, light grey, green
+    # cmap = colors.ListedColormap(
+    #     [(a / 255.0, b / 255.0, c / 255.0) for a, b, c in cmap]
+    # )
+    top = cm.get_cmap("Blues_r", 128)
+    bottom = cm.get_cmap("Greens", 128)
+    cmap = np.vstack((top(np.linspace(0, 1, 128)), bottom(np.linspace(0, 1, 128))))
+    cmap = colors.ListedColormap(cmap, name="GreensBlues")
     ax1.scatter(
         cloud[0],
         cloud[1],
         cloud[2] * args.z_max,
-        c=colors_,
-        vmin=0,
+        c=ndvi,
+        vmin=-1,
         vmax=1,
         s=10,
         alpha=1,
+        cmap=cmap,
     )
     ax1.auto_scale_xyz
     ax1.set_yticklabels([])
     ax1.set_xticklabels([])
-    # colors = cloud[3:7].numpy().transpose()
-    # ax1.scatter3D(cloud[0], cloud[1], cloud[2], c=cloud[[6, 3, 4]].numpy().transpose(), s=2, vmin=0, vmax=10)
-    ax1.set_title(pl_id)
+    ax1.set_title(f"{pl_id} (NDVI)")
+    # sm = ScalarMappable(cmap=cmap)  # bad norm 0-1 right now
+    # sm.set_array([])
+    # plt.colorbar(sm, ax=ax1)
 
     # LV stratum raster
     ax2 = fig.add_subplot(row, col, 2)
@@ -159,8 +186,8 @@ def visualize(
         (0.91, 0.91, 0.91),
         (0, 1, 0),
     ]  # first color is brown, second is grey, last is green
-    cm = colors.LinearSegmentedColormap.from_list("Custom", color_grad, N=100)
-    ax2.imshow(image_low_veg, cmap=cm, vmin=0, vmax=1)
+    cmap = colors.LinearSegmentedColormap.from_list("Custom", color_grad, N=100)
+    ax2.imshow(image_low_veg, cmap=cmap, vmin=0, vmax=1)
     ax2.set_title(f"Low veg. = {predictions[0]:.0%} (gt={gt[0]:.0%})")
     ax2.tick_params(
         axis="both",  # changes apply to both axis
@@ -199,8 +226,8 @@ def visualize(
     # MV stratum raster
     ax4 = fig.add_subplot(row, col, 4)
     color_grad = [(1, 1, 1), (0, 0, 1)]  # first color is white, last is blue
-    cm = colors.LinearSegmentedColormap.from_list("Custom", color_grad, N=100)
-    ax4.imshow(image_med_veg, cmap=cm, vmin=0, vmax=1)
+    cmap = colors.LinearSegmentedColormap.from_list("Custom", color_grad, N=100)
+    ax4.imshow(image_med_veg, cmap=cmap, vmin=0, vmax=1)
     ax4.set_title(f"Medium veg. = {predictions[2]:.0%} (gt={gt[2]:.0%})")
     ax4.tick_params(
         axis="both",  # changes apply to the x-axis
@@ -244,8 +271,8 @@ def visualize(
     if image_high_veg is not None:
         ax6 = fig.add_subplot(row, col, 6)
         color_grad = [(1, 1, 1), (1, 0, 0)]  # first color is white, last is red
-        cm = colors.LinearSegmentedColormap.from_list("Custom", color_grad, N=100)
-        ax6.imshow(image_high_veg, cmap=cm, vmin=0, vmax=1)
+        cmap = colors.LinearSegmentedColormap.from_list("Custom", color_grad, N=100)
+        ax6.imshow(image_high_veg, cmap=cmap, vmin=0, vmax=1)
         ax6.set_title(f"High veg. = {predictions[3]:.0%} (gt={gt[3]:.0%})")
         ax6.tick_params(
             axis="both",  # changes apply to the x-axis
