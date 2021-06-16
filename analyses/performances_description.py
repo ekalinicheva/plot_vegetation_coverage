@@ -1,3 +1,4 @@
+import time
 import pandas as pd
 from argparse import ArgumentParser
 import os
@@ -9,18 +10,32 @@ import glob
 repo_absolute_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(repo_absolute_path)
 from model.accuracy import calculate_performance_indicators
+from utils.useful_functions import create_dir
 
 # Select folder to use
 
-# parser = ArgumentParser(
-#     description="describe_perf"
-# )  # Byte-compiled / optimized / DLL files
-# parser.add_argument(
-#     "--results_files_path",
-#     default="",
-#     type=str,
-#     help="DEV or PROD mode - DEV is a quick debug mode",
-# )
+parser = ArgumentParser(
+    description="describe_perf"
+)  # Byte-compiled / optimized / DLL files
+parser.add_argument(
+    "--results_folder_path",
+    default=os.path.join(
+        repo_absolute_path,
+        "data/predictions_files/*placettes*.csv",
+    ),
+    type=str,
+    help="Path (abs or rel) to the folder containing csv file with results",
+)
+parser.add_argument(
+    "--benchmark_file_path",
+    default=os.path.join(
+        repo_absolute_path,
+        f"experiments/benchmarks/models_benchmark_at_{time.strftime('%Y-%m-%d_%Hh%Mm%Ss')}.csv",
+    ),
+    type=str,
+    help="Path (abs or rel) to the folder containing csv file with results",
+)
+args, _ = parser.parse_known_args()
 
 
 def format_cols(df):
@@ -65,53 +80,55 @@ def format_cols(df):
 
 
 def main():
-    results_folder_path = os.path.join(
-        repo_absolute_path,
-        "data/predictions_files/*placettes*.csv",
+    results_file_paths = glob.glob(args.results_folder_path)
+    means = []
+    for fname in results_file_paths:
+        df = pd.read_csv(fname)
+        df = format_cols(df)
+        df = calculate_performance_indicators(df)
+        means.append(df.mean())
+    df_out = pd.DataFrame(
+        means, index=[f.split("/")[-1].replace(".csv", "") for f in results_file_paths]
     )
-
-    results_file_path = glob.glob(results_folder_path)
-    df = pd.read_csv(results_file_path[0])
-    df = format_cols(df)
-    df = calculate_performance_indicators(df)
-    print(df.mean())
+    create_dir(os.path.dirname(args.benchmark_file_path))
+    df_out.to_csv(args.benchmark_file_path, index=True)
     # DEBUG
-    print(
-        df[df["accord classe basse"] != df["acc2_veg_b"]][
-            [
-                "Name",
-                "accord classe basse",
-                "acc2_veg_b",
-                "error2_veg_b",
-                "vt_veg_b",
-                "pred_veg_b",
-            ]
-        ]
-    )
-    print(
-        df[df["accord classe inter"] != df["acc2_veg_moy"]][
-            [
-                "Name",
-                "accord classe inter",
-                "acc2_veg_moy",
-                "error2_veg_moy",
-                "vt_veg_moy",
-                "pred_veg_moy",
-            ]
-        ]
-    )
-    print(
-        df[df["accord classe haute"] != df["acc2_veg_h"]][
-            [
-                "Name",
-                "accord classe inter",
-                "acc2_veg_h",
-                "error2_veg_h",
-                "vt_veg_h",
-                "pred_veg_h",
-            ]
-        ]
-    )
+    # print(
+    #     df[df["accord classe basse"] != df["acc2_veg_b"]][
+    #         [
+    #             "Name",
+    #             "accord classe basse",
+    #             "acc2_veg_b",
+    #             "error2_veg_b",
+    #             "vt_veg_b",
+    #             "pred_veg_b",
+    #         ]
+    #     ]
+    # )
+    # print(
+    #     df[df["accord classe inter"] != df["acc2_veg_moy"]][
+    #         [
+    #             "Name",
+    #             "accord classe inter",
+    #             "acc2_veg_moy",
+    #             "error2_veg_moy",
+    #             "vt_veg_moy",
+    #             "pred_veg_moy",
+    #         ]
+    #     ]
+    # )
+    # print(
+    #     df[df["accord classe haute"] != df["acc2_veg_h"]][
+    #         [
+    #             "Name",
+    #             "accord classe inter",
+    #             "acc2_veg_h",
+    #             "error2_veg_h",
+    #             "vt_veg_h",
+    #             "pred_veg_h",
+    #         ]
+    #     ]
+    # )
 
 
 if __name__ == "__main__":
