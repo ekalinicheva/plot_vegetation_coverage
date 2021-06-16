@@ -3,16 +3,9 @@ from utils.useful_functions import print_stats
 import pandas as pd
 
 # values should be in [0,1] since we deal with ratios of coverage
-bins_borders = np.round(
-    np.array([0.05, 0.175, 0.29, 0.415, 0.585, 0.71, 0.825, 0.95, 1.01]), 3
-)
-bins_centers = np.round(
-    np.array([0.0, 0.10, 0.25, 0.33, 0.50, 0.67, 0.75, 0.90, 1.00]), 3
-)
-bb_ = [0] + bins_borders.tolist()  # add the lowest border of class 0 to borders
-center_to_border_dict = {
-    center: borders for center, borders in zip(bins_centers, zip(bb_[:-1], bb_[1:]))
-}
+bins_centers = np.round(np.array([0.0, 0.10, 0.25, 0.33, 0.50, 0.75, 0.90, 1.00]), 3)
+bins_borders = np.append((bins_centers[:-1] + bins_centers[1:]) / 2, 1.05)
+# bins_borders = np.array([0.05 , 0.175, 0.29 , 0.415, 0.625, 0.825, 0.95 , 1.05 ])
 
 # check that borders are at equal distance of centers of surrounding classes
 assert all(
@@ -32,6 +25,14 @@ assert all(
         ),
     )
 )
+# we round up to be coherent with current metrics
+bins_borders = np.floor(bins_borders * 100 + 0.5) / 100
+# add the lowest border of class 0 to borders
+bb_ = [0] + bins_borders.tolist()
+# map center to ther borders in a dict
+center_to_border_dict = {
+    center: borders for center, borders in zip(bins_centers, zip(bb_[:-1], bb_[1:]))
+}
 
 # TODO: use this in metric computation
 def compute_mae(y_pred, y, center_to_border_dict=None):

@@ -1,6 +1,7 @@
 import os, sys
 
-sys.path.append("/home/CGaydon/Documents/LIDAR PAC/plot_vegetation_coverage/")
+repo_absolute_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(repo_absolute_path)
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -20,17 +21,23 @@ from functools import partial
 
 experiment_rel_path = "./experiments/RESULTS_3_strata/only_stratum/PROD/learning/2021-05-31_11h40m21s/PCC_inference_all_placettes.csv"
 
-# here everything is in % for clarity of plot
 # TODO: go from % to ratio to avoid inconsistency
-bins_borders = np.array([5, 17.5, 29, 41.5, 58.5, 71, 82.5, 95, 101])
-bins_centers = np.array([0, 10, 25, 33, 50, 67, 75, 90, 100])
+# here everything is in % for clarity of plot
+bins_centers = np.array([0, 10, 25, 33, 50, 75, 90, 100])
+bins_borders = np.append((bins_centers[:-1] + bins_centers[1:]) / 2, 105)
 assert list(
     map(lambda x: abs(x[0] - x[1]), zip(bins_borders[:-1], bins_centers[:-1]))
 ) == list(map(lambda x: abs(x[0] - x[1]), zip(bins_borders, bins_centers[1:])))
+
+# we round up to be coherent with current metrics
+bins_borders = np.floor(bins_borders + 0.5).astype(int)
+
+# create the associated mapping from center to borders
 bb = [0] + bins_borders.tolist()
 center_to_border_dict = {
     center: borders for center, borders in zip(bins_centers, zip(bb[:-1], bb[1:]))
 }
+
 # adapt error functions to %
 compute_accuracy2_perc = partial(
     compute_accuracy2, margin=10, center_to_border_dict=center_to_border_dict
