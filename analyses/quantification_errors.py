@@ -266,9 +266,9 @@ def main():
         msrt_error_description_path=msrt_error_description_path
     )
 
-    # get_all_expected_error_based_on_measurement_error_stdev(
-    #     expected_errors_path=expected_errors_path
-    # )
+    get_all_expected_error_based_on_measurement_error_stdev(
+        expected_errors_path=expected_errors_path
+    )
 
 
 if __name__ == "__main__":
