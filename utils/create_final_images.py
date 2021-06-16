@@ -21,33 +21,36 @@ def visualize_article(
     fig = plt.figure(figsize=(15, 12))
     gs = gridspec.GridSpec(3, 3)
 
-    # Original point data
+    # Original data
     ax1 = fig.add_subplot(gs[:, 0:2], projection="3d")
-    # NDVI calculation
-    r_infra = cloud[[3, 6]].numpy().transpose()
-    r = r_infra[:, 0]
-    infra = r_infra[:, 1]
-    ndvi = (infra - r) / (infra + r)
-    top = cm.get_cmap("Blues_r", 128)
-    bottom = cm.get_cmap("Greens", 128)
-    cmap = np.vstack((top(np.linspace(0, 1, 128)), bottom(np.linspace(0, 1, 128))))
-    cmap = colors.ListedColormap(cmap, name="GreensBlues")
+
+    # Fake color to see vegetation more clearly
+    nir_r_g_indexes = [6, 3, 4]
+    c = cloud[nir_r_g_indexes].numpy().transpose()
+
+    # # NDVI calculation
+    # r_infra = cloud[[3, 6]].numpy().transpose()
+    # r = r_infra[:, 0]
+    # infra = r_infra[:, 1]
+    # ndvi = (infra - r) / (infra + r)
+    # top = cm.get_cmap("Blues_r", 128)
+    # bottom = cm.get_cmap("Greens", 128)
+    # cmap = np.vstack((top(np.linspace(0, 1, 128)), bottom(np.linspace(0, 1, 128))))
+    # cmap = colors.ListedColormap(cmap, name="GreensBlues")
+
     ax1.scatter(
         cloud[0],
         cloud[1],
         cloud[2] * args.z_max,
-        c=ndvi,
-        vmin=-1,
+        c=c,
+        vmin=0,
         vmax=1,
         s=10,
         alpha=1,
-        cmap=cmap,
     )
     ax1.auto_scale_xyz
     ax1.set_yticklabels([])
     ax1.set_xticklabels([])
-    # colors = cloud[3:7].numpy().transpose()
-    # ax1.scatter3D(cloud[0], cloud[1], cloud[2], c=cloud[[6, 3, 4]].numpy().transpose(), s=2, vmin=0, vmax=10)
     ax1.set_title(pl_id)
     for line in ax1.xaxis.get_ticklines():
         line.set_visible(False)
@@ -147,34 +150,33 @@ def visualize(
     # Original point data
     ax1 = fig.add_subplot(row, col, 1, projection="3d")
 
+    # Fake color to see vegetation more clearly
+    nir_r_g_indexes = [6, 3, 4]
+    c = cloud[nir_r_g_indexes].numpy().transpose()
+
     # NDVI calculation
-    r_infra = cloud[[3, 6]].numpy().transpose()
-    r = r_infra[:, 0]
-    infra = r_infra[:, 1]
-    ndvi = (infra - r) / (infra + r)
-    # cmap = [(207, 47, 88), (200, 200, 200), (0, 150, 0)]  # magenta, light grey, green
-    # cmap = colors.ListedColormap(
-    #     [(a / 255.0, b / 255.0, c / 255.0) for a, b, c in cmap]
-    # )
-    top = cm.get_cmap("Blues_r", 128)
-    bottom = cm.get_cmap("Greens", 128)
-    cmap = np.vstack((top(np.linspace(0, 1, 128)), bottom(np.linspace(0, 1, 128))))
-    cmap = colors.ListedColormap(cmap, name="GreensBlues")
+    # r_infra = cloud[[3, 6]].numpy().transpose()
+    # r = r_infra[:, 0]
+    # infra = r_infra[:, 1]
+    # ndvi = (infra - r) / (infra + r)
+    # top = cm.get_cmap("Blues_r", 128)
+    # bottom = cm.get_cmap("Greens", 128)
+    # cmap = np.vstack((top(np.linspace(0, 1, 128)), bottom(np.linspace(0, 1, 128))))
+    # cmap = colors.ListedColormap(cmap, name="GreensBlues")
     ax1.scatter(
         cloud[0],
         cloud[1],
         cloud[2] * args.z_max,
-        c=ndvi,
-        vmin=-1,
+        c=c,
+        vmin=0,
         vmax=1,
         s=10,
         alpha=1,
-        cmap=cmap,
     )
     ax1.auto_scale_xyz
     ax1.set_yticklabels([])
     ax1.set_xticklabels([])
-    ax1.set_title(f"{pl_id} (NDVI)")
+    ax1.set_title(f"{pl_id}")
     # sm = ScalarMappable(cmap=cmap)  # bad norm 0-1 right now
     # sm.set_array([])
     # plt.colorbar(sm, ax=ax1)

@@ -159,8 +159,8 @@ def main():
             print_to_console=True,
         )
         fold_id += 1
-        if args.mode == "DEV" and fold_id >= 1:
-            break
+        # if args.mode == "DEV" and fold_id >= 1:
+        #     break
 
     stats_for_all_folds(
         all_folds_loss_train_lists, all_folds_loss_test_lists, args.stats_file, args

@@ -28,8 +28,13 @@ def load_all_las_from_folder(args):
 
     if args.mode == "DEV":
         shuffle(las_files)
-        las_files = las_files[: (5 * 5)]  # 2 plot by fold
-
+        # las_files = las_files[: (5 * 5)]  # nb plot by fold
+        las_files = las_files[:10] + [
+            l
+            for l in las_files
+            if any(n in l for n in ["OBS15", "F68", "2021_POINT_OBS2"])
+        ]
+        print(las_files)
     all_points_nparray = np.empty((0, args.nb_feats_for_train))
     for las_file in las_files:
 
