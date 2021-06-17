@@ -89,7 +89,12 @@ def study_quantification_error_1(df, output_fig_path=""):
     print(l)
 
     # actual error in dataset
-    df_errors = df.copy()
+    df_errors = df[["vt_veg_b", "vt_veg_moy", "vt_veg_h"]].copy()
+    if df_errors[["vt_veg_b", "vt_veg_moy", "vt_veg_h"]].values.max() <= 1:
+        # we scale back to % if needed, only for ground truths since we do not need predictions here
+        df_errors[["vt_veg_b", "vt_veg_moy", "vt_veg_h"]] = (
+            df_errors[["vt_veg_b", "vt_veg_moy", "vt_veg_h"]] * 100
+        )
     df_errors[["vt_veg_b", "vt_veg_moy", "vt_veg_h"]] = df_errors[
         ["vt_veg_b", "vt_veg_moy", "vt_veg_h"]
     ].replace(errors_by_class_mapper)
@@ -154,11 +159,11 @@ def compute_expected_error_based_on_measurement_error_stdev(
     # Gaussian error
     imprecision_generator = norm(0, stdev_of_error)
 
-    expected_E_list = []
+    expected_errors_list = []
 
     # for each coverage class
     for center, (lower_b, upper_b) in center_to_border_dict.items():
-        E_list = []
+        errors_list_for_class = []
 
         # for each value in a coverage class
         for real_coverage in np.arange(
@@ -169,7 +174,8 @@ def compute_expected_error_based_on_measurement_error_stdev(
             W = 0.0
 
             # for different imprecision values
-            for imprecision_delta in np.arange(-50, 50, 0.25):
+
+            for imprecision_delta in np.arange(-50, 50, 0.05):  # 0.25 for faster loop
                 w = imprecision_generator.pdf(imprecision_delta)
                 coverage_with_imprecision = real_coverage + imprecision_delta
                 # we accept that 0% and 100% are more likely errors when close to them
@@ -193,12 +199,11 @@ def compute_expected_error_based_on_measurement_error_stdev(
                         center_to_border_dict=center_to_border_dict,
                     )  # quantification error N°2
                 W = W + w
-            E_list.append(E / W)
-        expected_E_in_class = np.mean(E_list)
+            errors_list_for_class.append(E / W)
 
-        print(f"e={expected_E_in_class:.2}% for range [{lower_b};{upper_b}]")
-        expected_E_list.append(expected_E_in_class)
-    expected_E = np.mean(expected_E_list).round(2)
+        print(f"e={np.mean(errors_list_for_class):.2}% for range [{lower_b};{upper_b}]")
+        expected_errors_list.extend(errors_list_for_class)
+    expected_E = np.mean(expected_errors_list).round(2)
     print(
         f"Expected indicator ({error_func.func.__name__}) with evaluation error of stdev={stdev_of_error} is {expected_E}"
     )
@@ -211,6 +216,7 @@ def get_all_expected_error_based_on_measurement_error_stdev(
 ):
     global error_funcs
     global error_funcs_names
+
     expected_Es = np.empty((len(error_funcs), len(stdev_of_error_list)))
     for idx_stdev, stdev_of_error in enumerate(stdev_of_error_list):
         for idx_func, error_func in enumerate(error_funcs):
