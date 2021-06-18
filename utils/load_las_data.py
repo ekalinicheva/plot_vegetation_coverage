@@ -40,10 +40,10 @@ def load_all_las_from_folder(args):
         print(las_files)
     all_points_nparray = np.empty((0, args.nb_feats_for_train))
     for las_file in las_files:
-
         # Parse LAS files
-        points_nparray, xy_averages = load_single_las(las_folder, las_file)
-
+        points_nparray, xy_averages = load_single_las(
+            las_folder, las_file, args.znorm_radius_in_meters
+        )
         all_points_nparray = np.append(all_points_nparray, points_nparray, axis=0)
         nparray_clouds_dict[os.path.splitext(las_file)[0]] = points_nparray
         xy_averages_dict[os.path.splitext(las_file)[0]] = xy_averages
@@ -51,7 +51,7 @@ def load_all_las_from_folder(args):
     return all_points_nparray, nparray_clouds_dict, xy_averages_dict
 
 
-def load_single_las(las_folder, las_file):
+def load_single_las(las_folder, las_file, znorm_radius_in_meters):
     # Parse LAS files
     las = File(os.path.join(las_folder, las_file), mode="r")
     x_las = las.X
@@ -83,7 +83,9 @@ def load_single_las(las_folder, las_file):
     )
 
     # # We directly substract z_min at local level
-    points_placette = normalize_z_with_minz_in_a_radius(points_placette)
+    points_placette = normalize_z_with_minz_in_a_radius(
+        points_placette, znorm_radius_in_meters
+    )
     # points_placette = normalize_z_with_approximate_DTM(points_placette)
 
     # get the average
@@ -94,11 +96,11 @@ def load_single_las(las_folder, las_file):
     return points_placette, xy_averages
 
 
-def normalize_z_with_minz_in_a_radius(points_placette, radius_in_meters=0.5):
+def normalize_z_with_minz_in_a_radius(points_placette, znorm_radius_in_meters):
     # # We directly substract z_min at local level
     xyz = points_placette[:, :3]
     knn = NearestNeighbors(500, algorithm="kd_tree").fit(xyz[:, :2])
-    _, neigh = knn.radius_neighbors(xyz[:, :2], radius_in_meters)
+    _, neigh = knn.radius_neighbors(xyz[:, :2], znorm_radius_in_meters)
     z = xyz[:, 2]
     zmin_neigh = []
     for n in range(

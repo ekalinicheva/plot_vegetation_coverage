@@ -58,6 +58,7 @@ parser.add_argument('--nb_stratum', default=3, type=int,
                     help="[2, 3] Number of vegetation stratum that we compute 2 - ground level + medium level; 3 - ground level + medium level + high level")
 parser.add_argument('--ECM_ite_max', default=5, type=int, help='Max number of EVM iteration')
 parser.add_argument('--NR_ite_max', default=10, type=int, help='Max number of Netwon-Rachson iteration')
+parser.add_argument('--znorm_radius_in_meters', default=1.5, type=float, help='Radius for KNN normalization of altitude.')
 parser.add_argument('--z_max', default=None, type=float, help="Max (radius-normalized) altitude of points in plots, calculated on the fly.")
 
 # Network Parameters
