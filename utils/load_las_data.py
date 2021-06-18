@@ -83,7 +83,7 @@ def load_single_las(las_folder, las_file):
     )
 
     # # We directly substract z_min at local level
-    points_placette = normalize_z_with_minz_in_50cm_radius(points_placette)
+    points_placette = normalize_z_with_minz_in_a_radius(points_placette)
     # points_placette = normalize_z_with_approximate_DTM(points_placette)
 
     # get the average
@@ -94,11 +94,11 @@ def load_single_las(las_folder, las_file):
     return points_placette, xy_averages
 
 
-def normalize_z_with_minz_in_50cm_radius(points_placette):
+def normalize_z_with_minz_in_a_radius(points_placette, radius_in_meters=0.5):
     # # We directly substract z_min at local level
     xyz = points_placette[:, :3]
     knn = NearestNeighbors(500, algorithm="kd_tree").fit(xyz[:, :2])
-    _, neigh = knn.radius_neighbors(xyz[:, :2], 0.5)
+    _, neigh = knn.radius_neighbors(xyz[:, :2], radius_in_meters)
     z = xyz[:, 2]
     zmin_neigh = []
     for n in range(
@@ -110,7 +110,7 @@ def normalize_z_with_minz_in_50cm_radius(points_placette):
 
 
 def normalize_z_with_approximate_DTM(points_placette, args):
-    points_placette
+    pass
 
 
 def open_metadata_dataframe(args, pl_id_to_keep):

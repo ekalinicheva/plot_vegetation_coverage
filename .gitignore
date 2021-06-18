@@ -9,3 +9,4 @@ parcelles_splitting_dev_notebook.ipynb
 .ipynb_checkpoints/
 notebooks/*.tif
 notebooks/*.png
+notebooks/temp/
