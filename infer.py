@@ -6,6 +6,7 @@ import numpy as np
 import os
 import torch
 import matplotlib
+from tqdm import tqdm
 
 # Weird behavior: loading twice in cell appears to remove an elsewise occuring error.
 for i in range(2):
@@ -21,7 +22,7 @@ torch.cuda.empty_cache()
 # We import from other files
 from config import args
 from utils.useful_functions import create_new_experiment_folder, print_stats
-from data_loader.loader import normalize_cloud_data
+from data_loader.loader import rescale_cloud_data
 from utils.point_cloud_classifier import PointCloudClassifier
 from model.infer_utils import (
     divide_parcel_las_and_get_disk_centers,
@@ -29,6 +30,7 @@ from model.infer_utils import (
     create_geotiff_raster,
     merge_geotiff_rasters,
 )
+from utils.load_las_data import transform_features_of_plot_cloud
 
 
 args.z_max = 24.14  # the TRAINING args should be loaded from stats.csv/txt...
@@ -61,11 +63,11 @@ PCC = PointCloudClassifier(args)
 for las_filename in las_filenames:
     # TODO : remove this debug condition
     # if args.mode == "DEV":
-    #     if las_filename != "004000715-5-18.las": # small
+    #     if las_filename != "004000715-5-18.las":  # small
     #         continue
-    if args.mode == "DEV":
-        if las_filename == "004009611-11-13.las":  # too big
-            continue
+    # if args.mode == "DEV":
+    #     if las_filename == "004009611-11-13.las":  # too big
+    #         continue
 
     print_stats(
         args.stats_file,
@@ -73,26 +75,39 @@ for las_filename in las_filenames:
         print_to_console=True,
     )
 
-    # her we divide all parcels into plots
-    grid_pixel_xy_centers, points_nparray = divide_parcel_las_and_get_disk_centers(
+    # Divide parcel into plots
+    (
+        grid_pixel_xy_centers,
+        parcel_points_nparray,
+    ) = divide_parcel_las_and_get_disk_centers(
         args, las_folder, las_filename, save_fig_of_division=True
     )
-    print(points_nparray.shape)
+    print(f"File {las_filename} with shape {parcel_points_nparray.shape}")
     # TODO: replace this loop by a cleaner ad-hoc DataLoader
 
     idx_for_break = 0  # TODO: remove
-    idx_for_break_max = np.inf
-    for plot_center in grid_pixel_xy_centers:
+    idx_for_break_max = 40  # np.inf
+    centers = tqdm(
+        grid_pixel_xy_centers, desc="Centers for parcel in {las_filename}", leave=True
+    )
+    for plot_center in centers:
 
-        plots_point_nparray = extract_points_within_disk(points_nparray, plot_center)
+        plots_point_nparray = extract_points_within_disk(
+            parcel_points_nparray, plot_center
+        )
 
         # infer if non-empty selection
         # TODO: remove print
-        print(plots_point_nparray.shape)
+        # print(plots_point_nparray.shape)
+
         if plots_point_nparray.shape[0] > 0:
 
+            # TODO: Clarityt: make operations on the same axes instead of transposing inbetween
+            plots_point_nparray = transform_features_of_plot_cloud(
+                plots_point_nparray, args.znorm_radius_in_meters
+            )
             plots_point_nparray = plots_point_nparray.transpose()
-            plots_point_nparray = normalize_cloud_data(plots_point_nparray, args)
+            plots_point_nparray = rescale_cloud_data(plots_point_nparray, args)
 
             # add a batch dim before trying out dataloader
             plots_point_nparray = np.expand_dims(plots_point_nparray, axis=0)

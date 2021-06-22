@@ -5,7 +5,7 @@ from math import cos, pi, ceil
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
-
+from sys import getsizeof
 import rasterio
 from rasterio.merge import merge
 from rasterio.plot import show
@@ -17,7 +17,7 @@ from utils.create_final_images import *
 from data_loader.loader import *
 from utils.reproject_to_2d_and_predict_plot_coverage import *
 from model.loss_functions import *
-from utils.load_las_data import load_single_las
+from utils.load_las_data import load_and_clean_single_las
 
 sns.set()
 
@@ -37,21 +37,24 @@ def divide_parcel_las_and_get_disk_centers(
     :returns:
         centers_nparray: a nparray of centers coordinates
         points_nparray: a nparray of full cloud coordinates
-    Note: outputs are preprcessed by load_single_las but are not normalized
+    Note: outputs are not normalized
     """
-    points_nparray, _ = load_single_las(
-        las_folder, las_filename, args.znorm_radius_in_meters
-    )
-    # size_MB = getsizeof(round(getsizeof(points_nparray) / 1024 / 1024, 2))
+
+    points_nparray, _ = load_and_clean_single_las(las_folder, las_filename)
+    size_MB = getsizeof(round(getsizeof(points_nparray) / 1024 / 1024, 2))
+    print(f"Size of LAS file is {size_MB}")
 
     las_id = las_filename.split(".")[0]
     x_las, y_las = points_nparray[:, 0], points_nparray[:, 1]
-    # subsample = False
+
+    # DEBUG
+    # # subsample = False
     # if subsample:
     #     subsampling = 500
     #     subset = np.random.choice(points_nparray.shape[0],size=subsampling, replace=False)
     #     x_las = x_las[subset]
     #     y_las = y_las[subset]
+
     x_min = x_las.min()
     y_min = y_las.min()
     x_max = x_las.max()
@@ -91,118 +94,151 @@ def divide_parcel_las_and_get_disk_centers(
     # visualization
     if save_fig_of_division:
         # we need to normalize coordinates points for easier visualization
-        x_center = (x_min + x_max) / 2
-        y_center = (y_min + y_max) / 2
-        x_min_c = x_min - x_center
-        x_max_c = x_max - x_center
-        y_min_c = y_min - y_center
-        y_max_c = y_max - y_center
-
-        # xy to dataframe for visualization
-        coordinates = np.array(np.stack([x_las - x_center, y_las - y_center], axis=1))
-        coordinates = pd.DataFrame(data=coordinates)
-        coordinates.columns = ["x_n", "y_n"]
-
-        sampling_size_for_kde = (
-            10000  # fixed size which could lead to poor kde in large parcels.
+        save_image_of_parcel_division_into_plots(
+            args,
+            las_filename,
+            las_id,
+            x_las,
+            y_las,
+            x_min,
+            y_min,
+            x_max,
+            y_max,
+            within_circle_square_width_meters,
+            s,
+            square_xy_overlap,
+            grid_pixel_xy_centers,
         )
-        if len(coordinates) > sampling_size_for_kde:
-            coordinates = coordinates.sample(n=sampling_size_for_kde, replace=False)
-
-        # centers to dataframe for visualization
-        centers = np.array(grid_pixel_xy_centers - np.array([x_center, y_center]))
-        centers = pd.DataFrame(data=centers)
-        centers.columns = ["x_n", "y_n"]
-
-        fig, ax = plt.subplots(figsize=(10, 10), subplot_kw={"aspect": "equal"})
-        ax.grid(False)
-        ax.set_aspect("equal")  # Not working right now
-        plt.xlim(x_min_c - 5, x_max_c + 5)
-        plt.ylim(y_min_c - 5, y_max_c + 5)
-        plt.ylabel("y_n", rotation=0)
-        plt.title(
-            f'Cutting in r=10m plots for parcel "{las_id}"'
-            + f"\n Contained squares: W={within_circle_square_width_meters:.2f}m with overlap={square_xy_overlap:.2f}m (i.e. {s}pix)"
-        )
-        # plot kde of parcel
-        fig.tight_layout()
-        sns.kdeplot(
-            data=coordinates,
-            x="x_n",
-            y="y_n",
-            fill=True,
-            alpha=0.5,
-            color="g",
-            clip=[[x_min_c, x_max_c], [y_min_c, y_max_c]],
-        )  # thresh=0.2
-
-        # plot disks and squares
-        for _, (x, y) in centers.iterrows():
-            a_circle = plt.Circle(
-                (x, y), 10, fill=True, alpha=0.1, edgecolor="white", linewidth=1
-            )
-            ax.add_patch(a_circle)
-            a_circle = plt.Circle(
-                (x, y), 10, fill=False, edgecolor="white", linewidth=0.3
-            )
-            ax.add_patch(a_circle)
-        #     a_square = matplotlib.patches.Rectangle((x-within_circle_square_width_meters/2,
-        #                                              y-within_circle_square_width_meters/2),
-        #                                             within_circle_square_width_meters,
-        #                                             within_circle_square_width_meters,
-        #                                             fill=True, alpha =0.1)
-        #     ax.add_patch(a_square)
-        sns.scatterplot(data=centers, x="x_n", y="y_n", s=5)
-
-        # plot boundaries of parcel
-        plt.axhline(
-            y=y_min_c,
-            xmin=x_min_c,
-            xmax=x_max_c,
-            color="black",
-            alpha=0.6,
-            linestyle="-",
-        )
-        plt.axhline(
-            y=y_max_c,
-            xmin=x_min_c,
-            xmax=x_max_c,
-            color="black",
-            alpha=0.6,
-            linestyle="-",
-        )
-        plt.axvline(
-            x=x_min_c,
-            ymin=y_min_c,
-            ymax=y_max_c,
-            color="black",
-            alpha=0.6,
-            linestyle="-",
-        )
-        plt.axvline(
-            x=x_max_c,
-            ymin=y_min_c,
-            ymax=y_max_c,
-            color="black",
-            alpha=0.6,
-            linestyle="-",
-        )
-        # fig.show()
-
-        # saving
-        parcel_id = las_filename.split(".")[0]
-
-        cutting_plot_save_folder_path = os.path.join(args.stats_path, f"img/cuttings/")
-        create_dir(cutting_plot_save_folder_path)
-        cutting_plot_save_path = os.path.join(
-            cutting_plot_save_folder_path, f"cut_{parcel_id}.png"
-        )
-
-        plt.savefig(cutting_plot_save_path, dpi=200)
-        plt.clf()
-        plt.close("all")
 
     return grid_pixel_xy_centers, points_nparray
+
+
+def save_image_of_parcel_division_into_plots(
+    args,
+    las_filename,
+    las_id,
+    x_las,
+    y_las,
+    x_min,
+    y_min,
+    x_max,
+    y_max,
+    within_circle_square_width_meters,
+    s,
+    square_xy_overlap,
+    grid_pixel_xy_centers,
+):
+    """
+    Visualize and save to PNG file the division of a large parcel into many disk subplots.
+    """
+    x_center = (x_min + x_max) / 2
+    y_center = (y_min + y_max) / 2
+    x_min_c = x_min - x_center
+    x_max_c = x_max - x_center
+    y_min_c = y_min - y_center
+    y_max_c = y_max - y_center
+
+    # xy to dataframe for visualization
+    coordinates = np.array(np.stack([x_las - x_center, y_las - y_center], axis=1))
+    coordinates = pd.DataFrame(data=coordinates)
+    coordinates.columns = ["x_n", "y_n"]
+
+    sampling_size_for_kde = (
+        10000  # fixed size which could lead to poor kde in large parcels.
+    )
+    if len(coordinates) > sampling_size_for_kde:
+        coordinates = coordinates.sample(n=sampling_size_for_kde, replace=False)
+
+    # centers to dataframe for visualization
+    centers = np.array(grid_pixel_xy_centers - np.array([x_center, y_center]))
+    centers = pd.DataFrame(data=centers)
+    centers.columns = ["x_n", "y_n"]
+
+    fig, ax = plt.subplots(figsize=(10, 10), subplot_kw={"aspect": "equal"})
+    ax.grid(False)
+    ax.set_aspect("equal")  # Not working right now
+    plt.xlim(x_min_c - 5, x_max_c + 5)
+    plt.ylim(y_min_c - 5, y_max_c + 5)
+    plt.ylabel("y_n", rotation=0)
+    plt.title(
+        f'Cutting in r=10m plots for parcel "{las_id}"'
+        + f"\n Contained squares: W={within_circle_square_width_meters:.2f}m with overlap={square_xy_overlap:.2f}m (i.e. {s}pix)"
+    )
+    # plot kde of parcel
+    fig.tight_layout()
+    sns.kdeplot(
+        data=coordinates,
+        x="x_n",
+        y="y_n",
+        fill=True,
+        alpha=0.5,
+        color="g",
+        clip=[[x_min_c, x_max_c], [y_min_c, y_max_c]],
+    )  # thresh=0.2
+
+    # plot disks and squares
+    for _, (x, y) in centers.iterrows():
+        a_circle = plt.Circle(
+            (x, y), 10, fill=True, alpha=0.1, edgecolor="white", linewidth=1
+        )
+        ax.add_patch(a_circle)
+        a_circle = plt.Circle((x, y), 10, fill=False, edgecolor="white", linewidth=0.3)
+        ax.add_patch(a_circle)
+    #     a_square = matplotlib.patches.Rectangle((x-within_circle_square_width_meters/2,
+    #                                              y-within_circle_square_width_meters/2),
+    #                                             within_circle_square_width_meters,
+    #                                             within_circle_square_width_meters,
+    #                                             fill=True, alpha =0.1)
+    #     ax.add_patch(a_square)
+    sns.scatterplot(data=centers, x="x_n", y="y_n", s=5)
+
+    # plot boundaries of parcel
+    plt.axhline(
+        y=y_min_c,
+        xmin=x_min_c,
+        xmax=x_max_c,
+        color="black",
+        alpha=0.6,
+        linestyle="-",
+    )
+    plt.axhline(
+        y=y_max_c,
+        xmin=x_min_c,
+        xmax=x_max_c,
+        color="black",
+        alpha=0.6,
+        linestyle="-",
+    )
+    plt.axvline(
+        x=x_min_c,
+        ymin=y_min_c,
+        ymax=y_max_c,
+        color="black",
+        alpha=0.6,
+        linestyle="-",
+    )
+    plt.axvline(
+        x=x_max_c,
+        ymin=y_min_c,
+        ymax=y_max_c,
+        color="black",
+        alpha=0.6,
+        linestyle="-",
+    )
+    # fig.show()
+
+    # saving
+    parcel_id = las_filename.split(".")[0]
+
+    cutting_plot_save_folder_path = os.path.join(args.stats_path, f"img/cuttings/")
+    create_dir(cutting_plot_save_folder_path)
+    cutting_plot_save_path = os.path.join(
+        cutting_plot_save_folder_path, f"cut_{parcel_id}.png"
+    )
+
+    plt.savefig(cutting_plot_save_path, dpi=200)
+    plt.clf()
+    plt.close("all")
 
 
 def extract_points_within_disk(points_nparray, center, radius=10):
@@ -289,17 +325,20 @@ def create_geotiff_raster(
 def add_hard_med_veg_raster_band(img_to_write, image_med_veg):
     """
     We classify pixels into medium veg or non medium veg, creating a fourth canal.
+    We use a threshold for which coverage_hard is the closest to coverage_soft.
+    In case of global diffuse medium vegetation, this can overestimate areas with innaccessible medium vegetation,
+    but has little consequences since they would be scattered on the surface.
     Return shape : (nb_canals, 32, 32)
     """
-    # TODO: define a bette strategy
+
     target_coverage = np.nanmean(image_med_veg)
     lin = np.linspace(0, 1, 101)
     delta = np.ones_like(lin)
     for idx, threshold in enumerate(lin):
-        image_med_veg_hard = 1.0 * (img_to_write[1] > threshold)
+        image_med_veg_hard = 1.0 * (image_med_veg > threshold)
         delta[idx] = abs(target_coverage - np.nanmean(image_med_veg_hard))
     threshold = lin[np.argmin(delta)]
-    image_med_veg_hard = 1.0 * (img_to_write[1] > threshold)
+    image_med_veg_hard = 1.0 * (image_med_veg > threshold)
     img_to_write = np.concatenate([img_to_write, [image_med_veg_hard]], 0)
     return img_to_write
 

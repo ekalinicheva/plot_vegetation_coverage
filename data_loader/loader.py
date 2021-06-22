@@ -3,6 +3,58 @@ import torch
 from sklearn.neighbors import NearestNeighbors
 
 
+def rescale_cloud_data(cloud_data, args):
+    """
+    Normalize data by reducing scale, to feed te neural net.
+    :param cloud_data: np.array of shape (9, N)
+    """
+    # normalizing data
+    # Z data was already partially normalized during loading
+    xmean, ymean = np.mean(cloud_data[0:2], axis=1)
+
+    cloud_data[0] = (cloud_data[0] - xmean) / 10  # x
+    cloud_data[1] = (cloud_data[1] - ymean) / 10  # y
+    cloud_data[2] = cloud_data[2] / args.z_max  # z (flattened by normalization)
+
+    colors_max = 65536
+    cloud_data[3:7] = cloud_data[3:7] / colors_max
+    int_max = 32768
+    cloud_data[7] = cloud_data[7] / int_max
+    cloud_data[8] = (cloud_data[8] - 1) / (7 - 1)
+
+    cloud_data[9] = (cloud_data[9]) / args.z_max  # z non-flattened
+    return cloud_data
+
+
+def cloud_loader(plot_id, dataset, df_gt, train, args):
+    """
+    load a plot and returns points features (normalized xyz + features) and
+    ground truth
+    INPUT:
+    tile_name = string, name of the tile
+    train = int, train = 1 iff in the train set
+    OUTPUT
+    cloud_data, [n x 4] float Tensor containing points coordinates and intensity
+    labels, [n] long int Tensor, containing the points semantic labels
+    """
+    cloud_data = np.array(dataset[plot_id]).transpose()
+    gt = (
+        df_gt[df_gt["Name"] == plot_id][
+            ["COUV_BASSE", "COUV_SOL", "COUV_INTER", "COUV_HAUTE", "ADM"]
+        ].values
+        / 100
+    )
+
+    cloud_data = rescale_cloud_data(cloud_data, args)
+
+    if train:
+        cloud_data = augment(cloud_data)
+
+    cloud_data = torch.from_numpy(cloud_data)
+    gt = torch.from_numpy(gt).float()
+    return cloud_data, gt
+
+
 def augment(cloud_data):
     """augmentation function
     Does random rotation around z axis and adds Gaussian noise to all the features, except z and return number
@@ -37,63 +89,6 @@ def augment(cloud_data):
     return cloud_data
 
 
-def cloud_loader(plot_id, dataset, df_gt, train, args):
-    """
-    load a plot and returns points features (normalized xyz + features) and
-    ground truth
-    INPUT:
-    tile_name = string, name of the tile
-    train = int, train = 1 iff in the train set
-    OUTPUT
-    cloud_data, [n x 4] float Tensor containing points coordinates and intensity
-    labels, [n] long int Tensor, containing the points semantic labels
-    """
-    cloud_data = np.array(dataset[plot_id]).transpose()
-    gt = (
-        df_gt[df_gt["Name"] == plot_id][
-            ["COUV_BASSE", "COUV_SOL", "COUV_INTER", "COUV_HAUTE", "ADM"]
-        ].values
-        / 100
-    )
-
-    cloud_data = normalize_cloud_data(cloud_data, args)
-
-    if train:
-        cloud_data = augment(cloud_data)
-
-    cloud_data = torch.from_numpy(cloud_data)
-    gt = torch.from_numpy(gt).float()
-    return cloud_data, gt
-
-
-def cloud_loader_from_parcel(parcel_points_nparray, disk_center):
-
-    pass
-
-
-def normalize_cloud_data(cloud_data, args):
-    """
-    Normalize data by reducing scale, to feed te neural net.
-    :param cloud_data: np.array of shape (9, N)
-    """
-    # normalizing data
-    # Z data was already partially normalized during loading
-    xmean, ymean = np.mean(cloud_data[0:2], axis=1)
-
-    cloud_data[0] = (cloud_data[0] - xmean) / 10  # x
-    cloud_data[1] = (cloud_data[1] - ymean) / 10  # y
-    cloud_data[2] = (cloud_data[2]) / args.z_max  # z with norm50cm applied
-
-    colors_max = 65536
-    cloud_data[3:7] = cloud_data[3:7] / colors_max
-    int_max = 32768
-    cloud_data[7] = cloud_data[7] / int_max
-    cloud_data[8] = (cloud_data[8] - 1) / (7 - 1)
-
-    cloud_data[9] = (cloud_data[9]) / args.z_max  # z without norm50cm applied
-    return cloud_data
-
-
 def cloud_collate(batch):
     """Collates a list of dataset samples into a batch list for clouds
     and a single array for labels
@@ -102,3 +97,8 @@ def cloud_collate(batch):
     clouds, labels = list(zip(*batch))
     labels = torch.cat(labels, 0)
     return clouds, labels
+
+
+def cloud_loader_from_parcel(parcel_points_nparray, disk_center):
+
+    pass

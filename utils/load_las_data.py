@@ -41,8 +41,10 @@ def load_all_las_from_folder(args):
     all_points_nparray = np.empty((0, args.nb_feats_for_train))
     for las_file in las_files:
         # Parse LAS files
-        points_nparray, xy_averages = load_single_las(
-            las_folder, las_file, args.znorm_radius_in_meters
+        points_nparray, xy_averages = load_and_clean_single_las(las_folder, las_file)
+        # HERE: extract KNN normalization
+        points_nparray = transform_features_of_plot_cloud(
+            points_nparray, args.znorm_radius_in_meters
         )
         all_points_nparray = np.append(all_points_nparray, points_nparray, axis=0)
         nparray_clouds_dict[os.path.splitext(las_file)[0]] = points_nparray
@@ -51,7 +53,9 @@ def load_all_las_from_folder(args):
     return all_points_nparray, nparray_clouds_dict, xy_averages_dict
 
 
-def load_single_las(las_folder, las_file, znorm_radius_in_meters):
+# TODO: simplify the signature so that only one argument (las_filename) is needed.
+def load_and_clean_single_las(las_folder, las_file):
+    """Load a LAD file into a np.array, convert coordinates to meters, clean a few anomalies in plots."""
     # Parse LAS files
     las = File(os.path.join(las_folder, las_file), mode="r")
     x_las = las.X
@@ -63,37 +67,43 @@ def load_single_las(las_folder, las_file, znorm_radius_in_meters):
     nir = las.nir
     intensity = las.intensity
     return_nb = las.return_num
-    points_placette = np.asarray(
+    points_nparray = np.asarray(
         [x_las / 100, y_las / 100, z_las / 100, r, g, b, nir, intensity, return_nb]
     ).T  # we divide by 100 as all the values in las are in cm
 
     # There is a file with 2 points 60m above others (maybe birds), we delete these points
     if las_file == "Releve_Lidar_F70.las":
-        points_placette = points_placette[points_placette[:, 2] < 640]
+        points_nparray = points_nparray[points_nparray[:, 2] < 640]
     # We do the same for the intensity
     if las_file == "POINT_OBS8.las":
-        points_placette = points_placette[points_placette[:, -2] < 32768]
+        points_nparray = points_nparray[points_nparray[:, -2] < 32768]
     if las_file == "Releve_Lidar_F39.las":
-        points_placette = points_placette[points_placette[:, -2] < 20000]
-
-    # Add a feature:min-normalized using min-z of the plot
-    zmin_plot = np.min(points_placette[:, 2])
-    points_placette = np.append(
-        points_placette, points_placette[:, 2:3] - zmin_plot, axis=1
-    )
-
-    # # We directly substract z_min at local level
-    points_placette = normalize_z_with_minz_in_a_radius(
-        points_placette, znorm_radius_in_meters
-    )
-    # points_placette = normalize_z_with_approximate_DTM(points_placette)
+        points_nparray = points_nparray[points_nparray[:, -2] < 20000]
 
     # get the average
     xy_averages = [
         np.mean(x_las) / 100,
         np.mean(y_las) / 100,
     ]
-    return points_placette, xy_averages
+    return points_nparray, xy_averages
+
+
+def transform_features_of_plot_cloud(points_nparray, znorm_radius_in_meters):
+    """From the loaded points_nparray, process features and add additional ones.
+    This is different from [0;1] normalization which is performed in
+    1) Add a feature:min-normalized using min-z of the plot
+    2) Substract z_min at local level using KNN
+    """
+
+    zmin_plot = np.min(points_nparray[:, 2])
+    points_nparray = np.append(
+        points_nparray, points_nparray[:, 2:3] - zmin_plot, axis=1
+    )
+
+    points_nparray = normalize_z_with_minz_in_a_radius(
+        points_nparray, znorm_radius_in_meters
+    )
+    return points_nparray
 
 
 def normalize_z_with_minz_in_a_radius(points_placette, znorm_radius_in_meters):

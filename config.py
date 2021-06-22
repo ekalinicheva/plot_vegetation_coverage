@@ -5,7 +5,7 @@ from utils.useful_functions import get_args_from_prev_config
 # This script defines all parameters for data loading, model definition, sand I/O operations.
 
 # Set to DEV for faster iterations (1 fold, 4 epochs), in order to e.g. test saving results.
-MODE = "PROD"  # DEV or PROD
+MODE = "DEV"  # DEV or PROD
 
 
 parser = ArgumentParser(description="model")  # Byte-compiled / optimized / DLL files
