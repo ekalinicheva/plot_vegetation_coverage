@@ -40,7 +40,7 @@ def divide_parcel_las_and_get_disk_centers(
     Note: outputs are not normalized
     """
 
-    points_nparray, _ = load_and_clean_single_las(las_folder, las_filename)
+    points_nparray, xy_centers = load_and_clean_single_las(las_folder, las_filename)
     size_MB = getsizeof(round(getsizeof(points_nparray) / 1024 / 1024, 2))
     print(f"Size of LAS file is {size_MB}")
 
@@ -267,7 +267,7 @@ def create_geotiff_raster(
         plot_points_tensor, args, pred_pointwise
     )
 
-    # We normalize back x,y values to create a tiff file with
+    # We normalize back x,y values to create a tiff file
     img_to_write, geo = rescale_xy_and_get_geotransformation_(
         xy_nparray,
         plot_center,
@@ -331,6 +331,7 @@ def add_hard_med_veg_raster_band(img_to_write, image_med_veg):
     Return shape : (nb_canals, 32, 32)
     """
 
+    # TODO: update to keep np.nan in all boolean operations
     target_coverage = np.nanmean(image_med_veg)
     lin = np.linspace(0, 1, 101)
     delta = np.ones_like(lin)
@@ -360,6 +361,7 @@ def merge_geotiff_rasters(args, plot_name):
     mosaic, out_trans = merge(src_files_to_mosaic, method=_weighted_average_of_rasters)
 
     # hard raster wera also averaged and need to be set to 0 or 1
+    # TODO: update to keep np.nan in all boolean operations
     mosaic[3] = 1 * (
         mosaic[3] > 0.5
     )  # Note: this forgets about NODATA values outside of the parcel.

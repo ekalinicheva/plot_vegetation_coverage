@@ -10,10 +10,12 @@ def rescale_cloud_data(cloud_data, args):
     """
     # normalizing data
     # Z data was already partially normalized during loading
-    xmean, ymean = np.mean(cloud_data[0:2], axis=1)
+    x_center, y_center = (
+        np.min(cloud_data[0:2], axis=1) + np.max(cloud_data[0:2], axis=1)
+    ) / 2
 
-    cloud_data[0] = (cloud_data[0] - xmean) / 10  # x
-    cloud_data[1] = (cloud_data[1] - ymean) / 10  # y
+    cloud_data[0] = (cloud_data[0] - x_center) / 10  # x
+    cloud_data[1] = (cloud_data[1] - y_center) / 10  # y
     cloud_data[2] = cloud_data[2] / args.z_max  # z (flattened by normalization)
 
     colors_max = 65536

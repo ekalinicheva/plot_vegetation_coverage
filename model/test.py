@@ -19,7 +19,7 @@ def evaluate(
     params,
     args,
     test_list,
-    mean_dataset,
+    xy_centers_dict,
     stats_path,
     stats_file,
     last_epoch=False,
@@ -53,7 +53,7 @@ def evaluate(
         pred_pointwise, pred_pointwise_b = PCC.run(
             model, cloud
         )  # compute the prediction
-        end_encoding_time = time.time()
+        # end_encoding_time = time.time()
 
         pred_pl, pred_adm, pred_pixels = project_to_2d(
             pred_pointwise, cloud, pred_pointwise_b, PCC, args
@@ -120,7 +120,7 @@ def evaluate(
                     cloud,
                     likelihood,
                     pl_id,
-                    mean_dataset,
+                    xy_centers_dict,
                     plot_path,
                     stats_file,
                     args,

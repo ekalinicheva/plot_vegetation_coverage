@@ -18,7 +18,7 @@ def load_all_las_from_folder(args):
 
     # We open las files and create a training dataset
     nparray_clouds_dict = {}  # dict to store numpy array with each plot separately
-    xy_averages_dict = (
+    xy_centers_dict = (
         {}
     )  # we keep track of plots means to reverse the normalisation in the future
 
@@ -41,16 +41,16 @@ def load_all_las_from_folder(args):
     all_points_nparray = np.empty((0, args.nb_feats_for_train))
     for las_file in las_files:
         # Parse LAS files
-        points_nparray, xy_averages = load_and_clean_single_las(las_folder, las_file)
+        points_nparray, xy_centers = load_and_clean_single_las(las_folder, las_file)
         # HERE: extract KNN normalization
         points_nparray = transform_features_of_plot_cloud(
             points_nparray, args.znorm_radius_in_meters
         )
         all_points_nparray = np.append(all_points_nparray, points_nparray, axis=0)
         nparray_clouds_dict[os.path.splitext(las_file)[0]] = points_nparray
-        xy_averages_dict[os.path.splitext(las_file)[0]] = xy_averages
+        xy_centers_dict[os.path.splitext(las_file)[0]] = xy_centers
 
-    return all_points_nparray, nparray_clouds_dict, xy_averages_dict
+    return all_points_nparray, nparray_clouds_dict, xy_centers_dict
 
 
 # TODO: simplify the signature so that only one argument (las_filename) is needed.
@@ -58,9 +58,9 @@ def load_and_clean_single_las(las_folder, las_file):
     """Load a LAD file into a np.array, convert coordinates to meters, clean a few anomalies in plots."""
     # Parse LAS files
     las = File(os.path.join(las_folder, las_file), mode="r")
-    x_las = las.X
-    y_las = las.Y
-    z_las = las.Z
+    x_las = las.X / 100  # we divide by 100 as all the values in las are in cm
+    y_las = las.Y / 100
+    z_las = las.Z / 100
     r = las.Red
     g = las.Green
     b = las.Blue
@@ -68,8 +68,8 @@ def load_and_clean_single_las(las_folder, las_file):
     intensity = las.intensity
     return_nb = las.return_num
     points_nparray = np.asarray(
-        [x_las / 100, y_las / 100, z_las / 100, r, g, b, nir, intensity, return_nb]
-    ).T  # we divide by 100 as all the values in las are in cm
+        [x_las, y_las, z_las, r, g, b, nir, intensity, return_nb]
+    ).T
 
     # There is a file with 2 points 60m above others (maybe birds), we delete these points
     if las_file == "Releve_Lidar_F70.las":
@@ -81,11 +81,11 @@ def load_and_clean_single_las(las_folder, las_file):
         points_nparray = points_nparray[points_nparray[:, -2] < 20000]
 
     # get the average
-    xy_averages = [
-        np.mean(x_las) / 100,
-        np.mean(y_las) / 100,
+    xy_centers = [
+        (x_las.max() - x_las.min()) / 2.0,
+        (y_las.max() - y_las.min()) / 2.0,
     ]
-    return points_nparray, xy_averages
+    return points_nparray, xy_centers
 
 
 def transform_features_of_plot_cloud(points_nparray, znorm_radius_in_meters):
@@ -126,7 +126,8 @@ def normalize_z_with_approximate_DTM(points_placette, args):
 
 
 def open_metadata_dataframe(args, pl_id_to_keep):
-    """This opens the ground truth file. It completes if necessary admissibility value using ASP method."""
+    """This opens the ground truth file. It completes if necessary admissibility value using ASP method.
+    Values are kept as % as they are transformed during data loading into ratios."""
 
     df_gt = pd.read_csv(
         args.gt_file_path,

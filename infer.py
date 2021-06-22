@@ -62,9 +62,9 @@ PCC = PointCloudClassifier(args)
 
 for las_filename in las_filenames:
     # TODO : remove this debug condition
-    # if args.mode == "DEV":
-    #     if las_filename != "004000715-5-18.las":  # small
-    #         continue
+    if args.mode == "DEV":
+        if las_filename != "004000715-5-18.las":  # small
+            continue
     # if args.mode == "DEV":
     #     if las_filename == "004009611-11-13.las":  # too big
     #         continue
@@ -86,7 +86,7 @@ for las_filename in las_filenames:
     # TODO: replace this loop by a cleaner ad-hoc DataLoader
 
     idx_for_break = 0  # TODO: remove
-    idx_for_break_max = 40  # np.inf
+    idx_for_break_max = np.inf
     centers = tqdm(
         grid_pixel_xy_centers, desc="Centers for parcel in {las_filename}", leave=True
     )
@@ -96,42 +96,42 @@ for las_filename in las_filenames:
             parcel_points_nparray, plot_center
         )
 
-        # infer if non-empty selection
         # TODO: remove print
         # print(plots_point_nparray.shape)
 
-        if plots_point_nparray.shape[0] > 0:
+        if plots_point_nparray.shape[0] == 0:
+            continue
 
-            # TODO: Clarityt: make operations on the same axes instead of transposing inbetween
-            plots_point_nparray = transform_features_of_plot_cloud(
-                plots_point_nparray, args.znorm_radius_in_meters
-            )
-            plots_point_nparray = plots_point_nparray.transpose()
-            plots_point_nparray = rescale_cloud_data(plots_point_nparray, args)
+        # TODO: Clarityt: make operations on the same axes instead of transposing inbetween
+        plots_point_nparray = transform_features_of_plot_cloud(
+            plots_point_nparray, args.znorm_radius_in_meters
+        )
+        plots_point_nparray = plots_point_nparray.transpose()
+        plots_point_nparray = rescale_cloud_data(plots_point_nparray, args)
 
-            # add a batch dim before trying out dataloader
-            plots_point_nparray = np.expand_dims(plots_point_nparray, axis=0)
-            plot_points_tensor = torch.from_numpy(plots_point_nparray)
+        # add a batch dim before trying out dataloader
+        plots_point_nparray = np.expand_dims(plots_point_nparray, axis=0)
+        plot_points_tensor = torch.from_numpy(plots_point_nparray)
 
-            # compute pointwise prediction
-            # TODO: upsample points before predictions
-            pred_pointwise, _ = PCC.run(model, plot_points_tensor)
+        # compute pointwise prediction
+        pred_pointwise, _ = PCC.run(model, plot_points_tensor)
 
-            # pred_pointwise was permuted from (N_scores, N_points) to (N_points, N_scores) for some reasons at the end of PCC.run
-            pred_pointwise = pred_pointwise.permute(1, 0)
+        # pred_pointwise was permuted from (N_scores, N_points) to (N_points, N_scores) for some reasons at the end of PCC.run
+        pred_pointwise = pred_pointwise.permute(1, 0)
 
-            plot_name = las_filename.split(".")[0]
-            create_geotiff_raster(
-                args,
-                plots_point_nparray[0, :2, :],  # (2, N_points) xy nparray
-                pred_pointwise,
-                plot_points_tensor[0, :, :],  # cloud 2D tensor (N_feats, N_points)
-                plot_center,
-                plot_name,
-                add_weights_band=True,
-            )
-            idx_for_break += 1
-            if idx_for_break >= idx_for_break_max:
-                break
+        plot_name = las_filename.split(".")[0]
+        create_geotiff_raster(
+            args,
+            plots_point_nparray[0, :2, :],  # (N_points, 2) xy nparray
+            pred_pointwise,
+            plot_points_tensor[0, :, :],  # (N_feats, N_points) cloud 2D tensor
+            plot_center,
+            plot_name,
+            add_weights_band=True,
+        )
+
+        idx_for_break += 1
+        if idx_for_break >= idx_for_break_max:
+            break
 
     merge_geotiff_rasters(args, plot_name)

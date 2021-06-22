@@ -54,7 +54,7 @@ def main():
     (
         all_points_nparray,
         nparray_clouds_dict,
-        xy_averages_dict,
+        xy_centers_dict,
     ) = load_all_las_from_folder(args)
     print("Our dataset contains " + str(len(nparray_clouds_dict)) + " plots.")
 
@@ -123,7 +123,7 @@ def main():
             final_test_losses_list,
             cloud_info_list,
         ) = train_full(
-            args, fold_id, train_set, test_set, test_list, xy_averages_dict, params
+            args, fold_id, train_set, test_set, test_list, xy_centers_dict, params
         )
 
         cloud_info_list_by_fold[fold_id] = cloud_info_list

@@ -304,7 +304,7 @@ def create_final_images(
     cloud,
     likelihood,
     plot_name,
-    mean_dataset,
+    xy_centers_dict,
     stats_path,
     stats_file,
     args,
@@ -320,7 +320,7 @@ def create_final_images(
         # we get prediction stats string
         pred_pointwise = pred_pointwise_b[b]
         current_cloud = cloud[b]  # (9, N) tensor
-        plot_center = mean_dataset[plot_name]  # tuple (x,y)
+        plot_center = xy_centers_dict[plot_name]  # tuple (x,y)
 
         # we do raster reprojection, but we do not use torch scatter as we have to associate each value to a pixel
         image_low_veg, image_med_veg, image_high_veg = infer_and_project_on_rasters(
@@ -402,18 +402,27 @@ def create_final_images(
             )
 
 
+# TODO: correct rescaling to avoid artefact at borders
 def rescale_xy_and_get_geotransformation_(
-    xy, plot_center_xy, args, image_low_veg, image_med_veg, image_high_veg
+    xy_arr, plot_center_xy, args, image_low_veg, image_med_veg, image_high_veg
 ):
-    xy = xy * 10 + np.asarray(plot_center_xy).reshape(-1, 1)
+    # points_zone_center = (plot_center_xy.max(axis=1) + plot_center_xy.min(axis=1)) / 2
+    # xy_arr = xy_arr * 10 + points_zone_center.reshape(
+    #     -1, 1
+    # )  # 10 is hardcoded normalization factor
+
+    # geotransorm reference : https://gdal.org/user/raster_data_model.html
+    DIAM_METERS = 20
     geo = [
-        np.min(xy, axis=1)[0],
-        (np.max(xy, axis=1)[0] - np.min(xy, axis=1)[0]) / args.diam_pix,
+        plot_center_xy[0] - DIAM_METERS // 2,  # xmin
+        DIAM_METERS / args.diam_pix,
         0,
-        np.max(xy, axis=1)[1],
+        plot_center_xy[1] + DIAM_METERS // 2,  # ymax
         0,
-        (-np.max(xy, axis=1)[1] + np.min(xy, axis=1)[1]) / args.diam_pix,
+        -DIAM_METERS / args.diam_pix,
+        # negative b/c in geographic raster coordinates (0,0) is at top left
     ]
+
     if args.nb_stratum == 2:
         img_to_write = np.concatenate(([image_low_veg], [image_med_veg]), 0)
     else:
@@ -424,25 +433,32 @@ def rescale_xy_and_get_geotransformation_(
 
 
 def infer_and_project_on_rasters(current_cloud, args, pred_cloud):
-    # we do raster reprojection, but we do not use torch scatter as we have to associate each value to a pixel
-    # Outputs are
     """
+    We do raster reprojection, but we do not use torch scatter as we have to associate each value to a pixel
     current_cloud: (2, N) 2D tensor
      image_low_veg, image_med_veg, image_high_veg
     """
+
+    # we get unique pixel coordinate to serve as group for raster prediction
+    # TODO : extract somewhere else
+    DIAM_METERS = 20
+
+    scaling_factor = 10 * (
+        args.diam_pix / DIAM_METERS
+    )  # * pix/normalized_unit, using hardcoded factor of 10
+
     xy = current_cloud[:2, :]
-    # center and normalize between 0 and 1 using MIN and MAX of points (instead of plot center  and width/height !)
-    xy = torch.floor(
-        (xy - torch.min(xy, dim=1).values.view(2, 1).expand_as(xy))
-        / (torch.max(xy, dim=1).values - torch.min(xy, dim=1).values + 0.0001)
-        .view(2, 1)
-        .expand_as(xy)
-        * args.diam_pix
-    ).int()
-    xy = xy.cpu().numpy()
-    unique, index, inverse = np.unique(
-        xy.T, axis=0, return_index=True, return_inverse=True
+
+    width_height = (
+        (xy.max(axis=1).values - xy.min(axis=1).values).view(2, 1).expand_as(xy)
     )
+
+    xy = (
+        torch.floor((xy + width_height / 2) * scaling_factor)
+    ).int()  # values are between 0 and args.dim_pix-1, as expected
+
+    xy = xy.cpu().numpy()
+    _, _, inverse = np.unique(xy.T, axis=0, return_index=True, return_inverse=True)
 
     # we get the values for each unique pixel and write them to rasters
     image_low_veg = np.full((args.diam_pix, args.diam_pix), np.nan)

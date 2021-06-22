@@ -100,7 +100,7 @@ def train(model, PCC, train_set, params, optimizer, args):
     )
 
 
-def train_full(args, fold_id, train_set, test_set, test_list, mean_dataset, params):
+def train_full(args, fold_id, train_set, test_set, test_list, xy_centers_dict, params):
     """The full training loop"""
     # initialize the model
     model = PointNet(args.MLP_1, args.MLP_2, args.MLP_3, args)
@@ -139,7 +139,7 @@ def train_full(args, fold_id, train_set, test_set, test_list, mean_dataset, para
                 params,
                 args,
                 test_list,
-                mean_dataset,
+                xy_centers_dict,
                 args.stats_path,
                 args.stats_file,
                 last_epoch=True,
@@ -155,7 +155,7 @@ def train_full(args, fold_id, train_set, test_set, test_list, mean_dataset, para
                 params,
                 args,
                 test_list,
-                mean_dataset,
+                xy_centers_dict,
                 args.stats_path,
                 args.stats_file,
             )
