@@ -37,14 +37,14 @@ parser.add_argument('--stats_file', default=None, help="(Created on the fly) Pat
 parser.add_argument('--trained_model_path', default=os.path.join(repo_absolute_path, "experiments/RESULTS_3_strata/only_stratum/PROD/learning/2021-06-10_17h24m51s/model_ss_10000_dp_32_fold_1.pt"), help="Path to .pt file output by torch.save(net, path)")
 parser.add_argument("--use_prev_config", default=None, type=str, help="The id (e.g. 2021-06-10_17h29m42s) of a previous run from which to copy parameters from")
 
-# Model Parameters
+# Model Parameters  
 parser.add_argument('--n_class', default=4, type=int,
                     help="Size of the model output vector. In our case 4 - different vegetation coverage types")
 parser.add_argument('--input_feats', default='xyzrgbnir', type=str,
                     help="Point features that we keep. in this code, we keep them all. permuting those letters will break everything. To be modified")
 parser.add_argument('--nb_feats_for_train', default=10, type=int, help="Nb of feat given to model")
 parser.add_argument('--subsample_size', default=10000, type=int, help="Subsample cloud size")
-parser.add_argument('--diam_pix', default=20, type=int,
+parser.add_argument('--diam_pix', default=20, type=int, 
                     help="Size of the output stratum raster (its diameter in pixels)")
 parser.add_argument('--m', default=1., type=float,
                     help="Loss regularization. The weight of the negative loglikelihood loss in the total loss")

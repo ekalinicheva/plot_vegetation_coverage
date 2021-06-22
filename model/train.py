@@ -111,7 +111,8 @@ def train_full(args, fold_id, train_set, test_set, test_list, mean_dataset, para
             sum([p.numel() for p in model.parameters()])
         )
     )
-    print(model)
+    if fold_id == 1:
+        print(model)
 
     # define the classifier
     PCC = PointCloudClassifier(args)

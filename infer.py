@@ -27,6 +27,7 @@ from model.infer_utils import (
     divide_parcel_las_and_get_disk_centers,
     extract_points_within_disk,
     create_geotiff_raster,
+    merge_geotiff_rasters,
 )
 
 
@@ -58,16 +59,19 @@ model.eval()
 PCC = PointCloudClassifier(args)
 
 for las_filename in las_filenames:
+    # TODO : remove this debug condition
+    # if args.mode == "DEV":
+    #     if las_filename != "004000715-5-18.las": # small
+    #         continue
+    if args.mode == "DEV":
+        if las_filename == "004009611-11-13.las":  # too big
+            continue
+
     print_stats(
         args.stats_file,
         f"Inference on parcel file {las_filename}",
         print_to_console=True,
     )
-
-    # TODO : remove this debug condition
-    # if args.mode == "DEV":
-    #     if las_filename != "004000715-5-18.las":  # "004009611-11-13.las":
-    #         continue
 
     # her we divide all parcels into plots
     grid_pixel_xy_centers, points_nparray = divide_parcel_las_and_get_disk_centers(
@@ -78,8 +82,7 @@ for las_filename in las_filenames:
 
     idx_for_break = 0  # TODO: remove
     idx_for_break_max = np.inf
-    for plot_center in grid_pixel_xy_centers:  # TODO: loop through all!
-        # break
+    for plot_center in grid_pixel_xy_centers:
 
         plots_point_nparray = extract_points_within_disk(points_nparray, plot_center)
 
@@ -102,16 +105,18 @@ for las_filename in las_filenames:
             # pred_pointwise was permuted from (N_scores, N_points) to (N_points, N_scores) for some reasons at the end of PCC.run
             pred_pointwise = pred_pointwise.permute(1, 0)
 
-            las_id = las_filename.split(".")[0]
+            plot_name = las_filename.split(".")[0]
             create_geotiff_raster(
                 args,
                 plots_point_nparray[0, :2, :],  # (2, N_points) xy nparray
                 pred_pointwise,
                 plot_points_tensor[0, :, :],  # cloud 2D tensor (N_feats, N_points)
                 plot_center,
-                las_id,
+                plot_name,
                 add_weights_band=True,
             )
             idx_for_break += 1
             if idx_for_break >= idx_for_break_max:
                 break
+
+    merge_geotiff_rasters(args, plot_name)

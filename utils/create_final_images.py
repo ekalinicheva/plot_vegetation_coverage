@@ -489,11 +489,21 @@ def create_tiff(
     # We create a datasource
     driver_tiff = gdal.GetDriverByName("GTiff")
     dst_ds = driver_tiff.Create(new_tiff_name, width, height, nb_channels, datatype)
-    if nb_channels == 1:
-        dst_ds.GetRasterBand(1).WriteArray(data_array)
-    else:
-        for ch in range(nb_channels):
-            dst_ds.GetRasterBand(ch + 1).WriteArray(data_array[ch])
     dst_ds.SetGeoTransform(geotransformation)
     dst_ds.SetProjection(proj)
-    return dst_ds
+    if nb_channels == 1:
+        outband = dst_ds.GetRasterBand(1)
+        outband.WriteArray(data_array)
+        outband.SetNoDataValue(np.nan)
+        outband = None
+    else:
+        for ch in range(nb_channels):
+            outband = dst_ds.GetRasterBand(ch + 1)
+            outband.WriteArray(data_array[ch])
+            # nodataval is needed for the first band only
+            if ch == 0:
+                outband.SetNoDataValue(np.nan)
+            outband = None
+    # write to file
+    dst_ds.FlushCache()
+    dst_ds = None

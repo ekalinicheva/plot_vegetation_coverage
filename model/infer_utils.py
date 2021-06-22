@@ -1,26 +1,25 @@
 # Dependency imports
 import os
+import glob
 from math import cos, pi, ceil
-from utils.useful_functions import create_dir
 import pandas as pd
-import json
 import seaborn as sns
-from sys import getsizeof
-
-sns.set()
 import matplotlib.pyplot as plt
-import matplotlib
 
-from shapely.prepared import prep
-from shapely.geometry import Point, asMultiPoint
+import rasterio
+from rasterio.merge import merge
+from rasterio.plot import show
 
 
 # We import from other files
+from utils.useful_functions import create_dir
 from utils.create_final_images import *
 from data_loader.loader import *
 from utils.reproject_to_2d_and_predict_plot_coverage import *
 from model.loss_functions import *
 from utils.load_las_data import load_single_las
+
+sns.set()
 
 np.random.seed(42)
 
@@ -40,7 +39,9 @@ def divide_parcel_las_and_get_disk_centers(
         points_nparray: a nparray of full cloud coordinates
     Note: outputs are preprcessed by load_single_las but are not normalized
     """
-    points_nparray, _ = load_single_las(las_folder, las_filename)
+    points_nparray, _ = load_single_las(
+        las_folder, las_filename, args.znorm_radius_in_meters
+    )
     # size_MB = getsizeof(round(getsizeof(points_nparray) / 1024 / 1024, 2))
 
     las_id = las_filename.split(".")[0]
@@ -215,32 +216,6 @@ def extract_points_within_disk(points_nparray, center, radius=10):
     return contained_points
 
 
-def save_centers_dict(centers_dict, centers_dict_path):
-    with open(centers_dict_path, "w") as outfile:
-        json.dump(centers_dict, outfile)
-
-
-# def infer_from_single_cloud(model, PCC, cloud, args):
-#     """
-#     Returns: prediction at the pixel level
-#     Cloud is a single cloud tensor with batch dimension = 1.
-#     """
-#     model.eval()
-#     # loader = torch.utils.data.DataLoader(
-#     #     test_set, collate_fn=cloud_collate, batch_size=1, shuffle=False
-#     # )
-#     # if PCC.is_cuda:
-#     #     gt = gt.cuda()
-
-#     pred_pointwise, pred_pointwise_b = PCC.run(model, cloud)  # compute the prediction
-
-#     _, _, pred_pixels = project_to_2d(
-#         pred_pointwise, cloud, pred_pointwise_b, PCC, args
-#     )  # compute plot prediction
-
-#     return pred_pointwise, pred_pixels
-
-
 def create_geotiff_raster(
     args,
     xy_nparray,  # (2,N) tensor
@@ -266,13 +241,10 @@ def create_geotiff_raster(
         image_high_veg,
     )
 
-    # TODO: edit the comments
     # we get hard rasters for medium veg, creating a fourth canal
-    image_med_veg_hard = 1.0 * (img_to_write[1] > 0.5)  # TODO: define a bette strategy
-    img_to_write = np.concatenate(
-        [img_to_write, [image_med_veg_hard]], 0
-    )  # (nb_canals, 32, 32)
+    img_to_write = add_hard_med_veg_raster_band(img_to_write, image_med_veg)
 
+    nb_channels = len(img_to_write)
     if add_weights_band:
         # Currently: linear variation with distance to center
 
@@ -285,9 +257,11 @@ def create_geotiff_raster(
         xx, yy = np.meshgrid(x, y, sparse=True)
         image_weights = 1 - np.sqrt(xx ** 2 + yy ** 2)
 
-        img_to_write = np.concatenate(
-            [img_to_write, [image_weights]], 0
-        )  # (nb_canals, 32, 32)
+        # add weights for each canal
+        for _ in range(nb_channels):
+            img_to_write = np.concatenate(
+                [img_to_write, [image_weights.copy()]], 0
+            )  # (nb_canals, 32, 32)
 
     # define save paths
     tiff_folder_path = os.path.join(
@@ -300,10 +274,9 @@ def create_geotiff_raster(
         f"predictions_{plot_name}_X{plot_center[0]:.0f}_Y{plot_center[1]:.0f}.tif",
     )
 
+    nb_channels = len(img_to_write)
     create_tiff(
-        nb_channels=args.nb_stratum
-        + 1
-        + add_weights_band,  # stratum + hard raster + weights
+        nb_channels=nb_channels,  # stratum + hard raster + weights
         new_tiff_name=tiff_file_path,
         width=args.diam_pix,
         height=args.diam_pix,
@@ -311,3 +284,145 @@ def create_geotiff_raster(
         data_array=img_to_write,
         geotransformation=geo,
     )
+
+
+def add_hard_med_veg_raster_band(img_to_write, image_med_veg):
+    """
+    We classify pixels into medium veg or non medium veg, creating a fourth canal.
+    Return shape : (nb_canals, 32, 32)
+    """
+    # TODO: define a bette strategy
+    target_coverage = np.nanmean(image_med_veg)
+    lin = np.linspace(0, 1, 101)
+    delta = np.ones_like(lin)
+    for idx, threshold in enumerate(lin):
+        image_med_veg_hard = 1.0 * (img_to_write[1] > threshold)
+        delta[idx] = abs(target_coverage - np.nanmean(image_med_veg_hard))
+    threshold = lin[np.argmin(delta)]
+    image_med_veg_hard = 1.0 * (img_to_write[1] > threshold)
+    img_to_write = np.concatenate([img_to_write, [image_med_veg_hard]], 0)
+    return img_to_write
+
+
+def merge_geotiff_rasters(args, plot_name):
+    """
+    Create a weighted average form a folder of tif files with channels [C1, C2, ..., Cn, W1, W2, ..., Wn].
+    Outputs has same nb of canals, with wreightd average from C1 to Cn and sum of weights on W1 to Wn.
+    """
+    tiff_folder_path = os.path.join(
+        args.stats_path,
+        f"img/rasters/{plot_name}/",
+    )
+    dem_fps = glob.glob(os.path.join(tiff_folder_path, "*tif"))
+    src_files_to_mosaic = []
+    for fp in dem_fps:
+        src = rasterio.open(fp)
+        src_files_to_mosaic.append(src)
+    mosaic, out_trans = merge(src_files_to_mosaic, method=_weighted_average_of_rasters)
+
+    # hard raster wera also averaged and need to be set to 0 or 1
+    mosaic[3] = 1 * (
+        mosaic[3] > 0.5
+    )  # Note: this forgets about NODATA values outside of the parcel.
+
+    # save
+    out_meta = src.meta.copy()
+    print(out_meta)
+    out_meta.update(
+        {
+            "driver": "GTiff",
+            "height": mosaic.shape[1],
+            "width": mosaic.shape[2],
+            "transform": out_trans,
+            #         "crs": "+proj=utm +zone=35 +ellps=GRS80 +units=m +no_defs ",
+        }
+    )
+    out_fp = os.path.join(tiff_folder_path, f"prediction_raster_parcel_{plot_name}.tif")
+    with rasterio.open(out_fp, "w", **out_meta) as dest:
+        dest.write(mosaic)
+    print(f"Saved merged raster prediction to {out_fp}")
+
+
+def _weighted_average_of_rasters(
+    old_data, new_data, old_nodata, new_nodata, index=None, roff=None, coff=None
+):
+    """
+    Input data is composed of rasters with C * 2 bands, where C is the number of score.
+    A weighted sum is performed on both scores bands [0:C] and weights [C:] using weights.
+    One then needs to divide scores by the values of weights.
+    """
+
+    nb_scores_channels = int(len(old_data) / 2)
+    unweighted_weights_bands = np.zeros_like(old_data[:nb_scores_channels, :, :])
+    for band_idx in range(nb_scores_channels):  # for each score band
+        w_idx = nb_scores_channels + band_idx
+
+        # scale the score with weights, ignoring nodata in scores
+        old_data[band_idx] = (
+            old_data[band_idx]
+            * old_data[w_idx]
+            * (1 - old_nodata[band_idx])  # contrib is zero if nodata
+        )
+        new_data[band_idx] = (
+            new_data[band_idx]
+            * new_data[w_idx]
+            * (1 - new_nodata[band_idx])  # contrib is zero if nodata
+        )
+
+        # sum weights
+        w_idx = nb_scores_channels + band_idx
+        w1 = old_data[w_idx] * (1 - old_nodata[band_idx])
+        w2 = new_data[w_idx] * (1 - new_nodata[band_idx])
+        unweighted_weights_bands[band_idx] = np.nansum(
+            np.concatenate([[w1], [w2]]), axis=0
+        )
+
+        # Ignore if nodata in weights
+        old_data[w_idx] = w1  # contrib is zero if nodata
+        new_data[w_idx] = w2  # contrib is zero if nodata
+
+    # set back to NoDataValue
+    # TODO: asure that when saving initial tiff nodata is also np.nan and not something else
+    old_data[old_nodata] = np.nan
+    new_data[new_nodata] = np.nan
+
+    # we summ weighted scores, and weights
+    out_data = np.nansum([old_data, new_data], axis=0)
+
+    # we average scores, using unweighted weights
+    out_data[:nb_scores_channels] = (
+        out_data[:nb_scores_channels] / unweighted_weights_bands
+    )
+    # # we do not average weights
+    # out_data[nb_scores_channels:] = (
+    #     out_data[nb_scores_channels:] / unweighted_weights_bands
+    # )
+
+    # we have to update the content of the input argument
+    old_data[:] = out_data[:]
+
+
+# def save_centers_dict(centers_dict, centers_dict_path):
+#     with open(centers_dict_path, "w") as outfile:
+#         json.dump(centers_dict, outfile)
+
+
+# def infer_from_single_cloud(model, PCC, cloud, args):
+#     """
+#     Returns: prediction at the pixel level
+#     Cloud is a single cloud tensor with batch dimension = 1.
+#     """
+#     model.eval()
+#     # loader = torch.utils.data.DataLoader(
+#     #     test_set, collate_fn=cloud_collate, batch_size=1, shuffle=False
+#     # )
+#     # if PCC.is_cuda:
+#     #     gt = gt.cuda()
+
+#     pred_pointwise, pred_pointwise_b = PCC.run(model, cloud)  # compute the prediction
+
+#     _, _, pred_pixels = project_to_2d(
+#         pred_pointwise, cloud, pred_pointwise_b, PCC, args
+#     )  # compute plot prediction
+
+#     return pred_pointwise, pred_pixels
