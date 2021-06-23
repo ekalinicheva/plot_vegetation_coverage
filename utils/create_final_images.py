@@ -411,13 +411,14 @@ def rescale_xy_and_get_geotransformation_(
     #     -1, 1
     # )  # 10 is hardcoded normalization factor
 
-    # geotransorm reference : https://gdal.org/user/raster_data_model.html
+    # geotransform reference : https://gdal.org/user/raster_data_model.html
+    # top_left_x, pix_width_in_meters, _, top_left_y, pix_heighgt_in_meters (neg for north up picture)
     DIAM_METERS = 20
     geo = [
         plot_center_xy[0] - DIAM_METERS // 2,  # xmin
         DIAM_METERS / args.diam_pix,
         0,
-        plot_center_xy[1] + DIAM_METERS // 2,  # ymax
+        plot_center_xy[1] + DIAM_METERS // 2,  # ymin
         0,
         -DIAM_METERS / args.diam_pix,
         # negative b/c in geographic raster coordinates (0,0) is at top left
@@ -454,7 +455,7 @@ def infer_and_project_on_rasters(current_cloud, args, pred_cloud):
     )
 
     xy = (
-        torch.floor((xy + width_height / 2) * scaling_factor)
+        torch.floor((xy + width_height / 2 + 0.0001) * scaling_factor)
     ).int()  # values are between 0 and args.dim_pix-1, as expected
 
     xy = xy.cpu().numpy()
