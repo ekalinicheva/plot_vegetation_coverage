@@ -107,7 +107,7 @@ for las_filename in las_filenames:
             plots_point_nparray, args.znorm_radius_in_meters
         )
         plots_point_nparray = plots_point_nparray.transpose()
-        plots_point_nparray = rescale_cloud_data(plots_point_nparray, args)
+        plots_point_nparray = rescale_cloud_data(plots_point_nparray, plot_center, args)
 
         # add a batch dim before trying out dataloader
         plots_point_nparray = np.expand_dims(plots_point_nparray, axis=0)

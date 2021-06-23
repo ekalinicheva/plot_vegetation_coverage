@@ -418,7 +418,7 @@ def rescale_xy_and_get_geotransformation_(
         plot_center_xy[0] - DIAM_METERS // 2,  # xmin
         DIAM_METERS / args.diam_pix,
         0,
-        plot_center_xy[1] + DIAM_METERS // 2,  # ymin
+        plot_center_xy[1] + DIAM_METERS // 2,  # ymax
         0,
         -DIAM_METERS / args.diam_pix,
         # negative b/c in geographic raster coordinates (0,0) is at top left
@@ -450,12 +450,18 @@ def infer_and_project_on_rasters(current_cloud, args, pred_cloud):
 
     xy = current_cloud[:2, :]
 
-    width_height = (
-        (xy.max(axis=1).values - xy.min(axis=1).values).view(2, 1).expand_as(xy)
-    )
+    # width_height = (
+    #     (xy.max(axis=1).values - xy.min(axis=1).values).view(2, 1).expand_as(xy)
+    # )
+
+    # xy = (
+    #     torch.floor((xy + width_height / 2 + 0.0001) * scaling_factor)
+    # ).int()  # values are between 0 and args.dim_pix-1, as expected
 
     xy = (
-        torch.floor((xy + width_height / 2 + 0.0001) * scaling_factor)
+        torch.floor(
+            (xy + 0.0001) * scaling_factor + torch.Tensor([[10], [10]]).expand_as(xy)
+        )
     ).int()  # values are between 0 and args.dim_pix-1, as expected
 
     xy = xy.cpu().numpy()
@@ -487,7 +493,7 @@ def infer_and_project_on_rasters(current_cloud, args, pred_cloud):
         if args.nb_stratum == 3:
             proba_high_veg = max_pool_val[3]
             image_high_veg[m, k] = proba_high_veg
-    # we flip along y axis as the 1st raster row starts with 0
+    # We flip along y axis as the 1st raster row starts with 0
     image_low_veg = np.flip(image_low_veg, axis=0)
     image_med_veg = np.flip(image_med_veg, axis=0)
     if args.nb_stratum == 3:

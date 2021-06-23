@@ -3,16 +3,22 @@ import torch
 from sklearn.neighbors import NearestNeighbors
 
 
-def rescale_cloud_data(cloud_data, args):
+def rescale_cloud_data(cloud_data, cloud_center, args):
     """
     Normalize data by reducing scale, to feed te neural net.
     :param cloud_data: np.array of shape (9, N)
     """
     # normalizing data
     # Z data was already partially normalized during loading
-    x_center, y_center = (
-        np.min(cloud_data[0:2], axis=1) + np.max(cloud_data[0:2], axis=1)
-    ) / 2
+
+    if cloud_center is None:
+        # Training scenario : the actual center is not that important
+        x_center, y_center = (
+            np.min(cloud_data[0:2], axis=1) + np.max(cloud_data[0:2], axis=1)
+        ) / 2
+    else:
+        # Inference scenario : the actual center is important for projection
+        x_center, y_center = cloud_center
 
     cloud_data[0] = (cloud_data[0] - x_center) / 10  # x
     cloud_data[1] = (cloud_data[1] - y_center) / 10  # y
@@ -30,6 +36,7 @@ def rescale_cloud_data(cloud_data, args):
 
 def cloud_loader(plot_id, dataset, df_gt, train, args):
     """
+    For DataLoader during training of model.
     load a plot and returns points features (normalized xyz + features) and
     ground truth
     INPUT:
@@ -47,7 +54,7 @@ def cloud_loader(plot_id, dataset, df_gt, train, args):
         / 100
     )
 
-    cloud_data = rescale_cloud_data(cloud_data, args)
+    cloud_data = rescale_cloud_data(cloud_data, None, args)
 
     if train:
         cloud_data = augment(cloud_data)
