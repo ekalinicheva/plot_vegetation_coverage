@@ -1,6 +1,6 @@
 # PointNet-based model for the prediction of vegetation coverage using 3D LiDAR point clouds
 
-PyTorch implementation of a weakly supervised algorithm for the prediction of vegetation coverage of different stratum. The algorithm is based on PointNet model [ref] for 3D data classification and segmentation.
+PyTorch implementation of a weakly supervised algorithm for the prediction of vegetation coverage of different stratum. The algorithm is based on PointNet model [1] for 3D data classification and segmentation.
 First, our algorithm compute the pointwise-predictions a point belong to one of 4 classes:
 - low vegetation
 - bare soil
@@ -11,6 +11,8 @@ Then it reprojects each point to the corresponding vegetation stratum by using p
 Finally, we compute vegetation ratio for each stratum to get final results.
 
 ![](exemples_images/3_stratum.png)
+
+[1] R. Q. Charles, H. Su, M. Kaichun and L. J. Guibas, "PointNet: Deep Learning on Point Sets for 3D Classification and Segmentation," 2017 IEEE Conference on Computer Vision and Pattern Recognition (CVPR), 2017, pp. 77-85, doi: 10.1109/CVPR.2017.16.
 
 ### Example usage
 We show how to use the code to reproduce the results in the notebook `notebook_demo.ipynb`. 
