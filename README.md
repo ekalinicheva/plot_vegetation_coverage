@@ -19,7 +19,7 @@ We show how to use the code to reproduce the results in the notebook `notebook_d
 The notebook can also be directly run on [this google colab](https://colab.research.google.com/drive/1MoX46KhSgkyQ36uSi04OVJ3RVHw-SeDH#scrollTo=_jH5pCLHuAza).
 
 ### Dataset
-Our dataset for model training is available [here](https://10.5281/zenodo.5555758).
+Our dataset for model training is available [here](https://doi.org/10.5281/zenodo.5555758).
 
 ## Installation
 
