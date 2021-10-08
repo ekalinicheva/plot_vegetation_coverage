@@ -32,10 +32,8 @@ def main():
     # System Parameters
     parser.add_argument('--path', default="/home/ign.fr/ekalinicheva/DATASET_regression/", type=str,
                         help="Main folder directory")
-    # parser.add_argument('--gt_file', default="resultats_placettes_combo.csv", type=str, help="Name of GT *.cvs file. Should be put in main path folder.")
     parser.add_argument('--gt_file', default="resultats_placettes_combo_new.csv", type=str, help="Name of GT *.cvs file. Should be put in main path folder.")
 
-    # parser.add_argument('--plot_folder_name', default="placettes_combo", type=str, help="Name of folder with *.las files. Should be put in main path folder.")
     parser.add_argument('--plot_folder_name', default="placettes_combo_new", type=str, help="Name of folder with *.las files. Should be put in main path folder.")
 
     parser.add_argument('--cuda', default=1, type=int, help="Whether we use cuda (1) or not (0)")
@@ -44,8 +42,9 @@ def main():
     # Model Parameters
     parser.add_argument('--n_class', default=4, type=int,
                         help="Size of the model output vector. In our case 4 - different vegetation coverage types")
-    parser.add_argument('--input_feats', default='xyzrgbnir', type=str,
-                        help="Point features that we keep. in this code, we keep them all. permuting those letters will break everything. To be modified")
+    parser.add_argument('--input_feats', default='xyzRGBNir', type=str,
+                        help="Point features that we keep. To choose between xyzRGBNirn. Please, do not permute. "
+                             "xyz - coordinates, R - red, G - green, B - blue, N - NIR, i - intensity, r - return number, n - number of returns (we do not use it).")
     parser.add_argument('--subsample_size', default=4096, type=int, help="Subsample cloud size")
     parser.add_argument('--diam_pix', default=32, type=int,
                         help="Size of the output stratum raster (its diameter in pixels)")
@@ -57,7 +56,7 @@ def main():
     parser.add_argument('--nb_stratum', default=3, type=int,
                         help="[2, 3] Number of vegetation stratum that we compute 2 - ground level + medium level; 3 - ground level + medium level + high level")
     parser.add_argument('--ent', default=True, type=bool, help="Whether we add antropy loss or not")
-    parser.add_argument('--e', default=0.1, type=float,
+    parser.add_argument('--e', default=0.2, type=float,
                         help="Loss regularization for entropy. The weight of the entropy loss in the total loss")
 
     parser.add_argument('--ECM_ite_max', default=5, type=int, help='Max number of EVM iteration')

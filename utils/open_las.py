@@ -12,7 +12,7 @@ def open_las(las_folder):
 
     # We iterate through las files and transform them to np array
     las_files = os.listdir(las_folder)
-    all_points = np.empty((0, 9))
+    all_points = np.empty((0, 10))
     for las_file in las_files:
         las = File(os.path.join(las_folder, las_file), mode='r')
         x_las = las.X
@@ -24,8 +24,10 @@ def open_las(las_folder):
         nir = las.nir
         intensity = las.intensity
         return_nb = las.return_num
+        nb_of_returns = las.num_returns
+
         points_placette = np.asarray([x_las / 100, y_las / 100, z_las / 100, r, g, b, nir, intensity,
-                                      return_nb]).T  # we divide by 100 as all the values in las are in cm
+                                      return_nb, nb_of_returns]).T  # we divide by 100 as all the values in las are in cm
 
         # There is a file with 2 points 60m above others (maybe birds), we delete these points
         if las_file == "Releve_Lidar_F70.las":

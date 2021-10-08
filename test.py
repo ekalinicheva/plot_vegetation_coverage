@@ -39,7 +39,7 @@ def eval(model, PCC, test_set, params, args, test_list, mean_dataset, stats_path
 
 
         start_encoding_time = time.time()
-        pred_pointwise, pred_pointwise_b = PCC.run(model, cloud)  # compute the prediction
+        pred_pointwise, pred_pointwise_b = PCC.run(model, cloud, args)  # compute the prediction
         end_encoding_time = time.time()
         if last_epoch:            # if it is the last epoch, we get time stats info
             print(end_encoding_time - start_encoding_time)

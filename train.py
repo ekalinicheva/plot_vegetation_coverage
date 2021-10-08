@@ -34,7 +34,7 @@ def train(model, PCC, train_set, params, optimizer, args):
             gt = gt.cuda()
 
         optimizer.zero_grad()  # put gradient to zero
-        pred_pointwise, pred_pointwise_b = PCC.run(model, cloud)  # compute the pointwise prediction
+        pred_pointwise, pred_pointwise_b = PCC.run(model, cloud, args)  # compute the pointwise prediction
         pred_pl, pred_adm, pred_pixels = project_to_2d(pred_pointwise, cloud, pred_pointwise_b, PCC, args)  # compute plot prediction
 
         # we compute two losses (negative loglikelihood and the absolute error loss for 2 or 3 stratum)

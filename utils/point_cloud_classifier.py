@@ -17,8 +17,13 @@ class PointCloudClassifier:
             self.n_input_feats = len(args.input_feats)
         self.n_class = args.n_class  # number of classes in the output
         self.is_cuda = args.cuda  # wether to use GPU acceleration
+        self.indices_to_keep = []
+        feats = args.input_feats
+        for f in range(len(feats)):
+            if feats[f] in "xyzRGBNirn":
+                self.indices_to_keep.append(f)
 
-    def run(self, model, clouds):
+    def run(self, model, clouds, args):
         """
         INPUT:
         model = the neural network
@@ -28,6 +33,13 @@ class PointCloudClassifier:
              batch in a single tensor
 
         """
+        #
+        # indices_to_keep = []
+        # feats = args.input_feats
+        # for f in range(len(feats)):
+        #     if feats[f] in "xyzRGBNirn":
+        #         indices_to_keep.append(f)
+
 
         # number of clouds in the batch #TYPO
         n_batch = len(clouds)
@@ -45,7 +57,7 @@ class PointCloudClassifier:
             # load the elements in the batch one by one and subsample/ oversample them
             # to a size of self.subsample_size points
 
-            cloud = clouds[i_batch][:int(self.n_input_feats), :]
+            cloud = clouds[i_batch][self.indices_to_keep, :]
             n_points = cloud.shape[1]  # number of points in the considered cloud
             if n_points > self.subsample_size:
                 selected_points = np.random.choice(n_points, self.subsample_size,
@@ -68,8 +80,7 @@ class PointCloudClassifier:
             # and the corresponding sampled batch (only xyz position)
             sampled_cloud = sampled_clouds[i_batch, :3, :]
             n_points = cloud.shape[1]
-            knn = NearestNeighbors(1, algorithm='kd_tree').fit( \
-                sampled_cloud.cpu().permute(1, 0))
+            knn = NearestNeighbors(1, algorithm='kd_tree').fit(sampled_cloud.cpu().permute(1, 0))
             # select for each point in the original point cloud the closest point in sampled_cloud
             _, closest_point = knn.kneighbors(cloud[:3, :].permute(1, 0).cpu())
             closest_point = closest_point.squeeze()

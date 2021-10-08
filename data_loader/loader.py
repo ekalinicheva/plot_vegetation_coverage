@@ -50,6 +50,7 @@ def cloud_loader(plot_id, dataset, df_gt, train, args):
     int_max = 32768
     cloud_data[7] = cloud_data[7] / int_max
     cloud_data[8] = (cloud_data[8] - 1)/(7-1)
+    cloud_data[9] = (cloud_data[9] - 1) / (7 - 1)
 
     if train:
       cloud_data = augment(cloud_data)
